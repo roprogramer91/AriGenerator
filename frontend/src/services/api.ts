@@ -5,6 +5,25 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '',
 });
 
+// Adjuntar token JWT en cada request
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('ari_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Si el servidor responde 401, limpiar token (fuerza re-login)
+api.interceptors.response.use(
+  r => r,
+  err => {
+    if (err?.response?.status === 401) {
+      localStorage.removeItem('ari_token');
+      window.location.reload();
+    }
+    return Promise.reject(err);
+  },
+);
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 export const getConfig = () =>
@@ -41,6 +60,7 @@ export const generateImage = (payload: {
   useFace?: boolean;
   useBody?: boolean;
   usePhone?: boolean;
+  model?: string;
   inputText?: string;
   // Lab: imagen fuente a variar
   sourceImageBase64?: string;

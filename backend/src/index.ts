@@ -5,6 +5,8 @@ import configRoutes from './routes/config';
 import generateRoutes from './routes/generate';
 import variationsRoutes from './routes/variations';
 import galleryRoutes from './routes/gallery';
+import authRoutes from './routes/auth';
+import { requireAuth } from './middleware/auth';
 
 process.on('uncaughtException', (err) => {
   console.error('[uncaughtException]', err.stack ?? err);
@@ -34,6 +36,11 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Auth — sin protección (es el login)
+app.use('/api/auth', authRoutes);
+
+// Todas las demás rutas requieren token
+app.use('/api', requireAuth);
 app.use('/api/config', configRoutes);
 app.use('/api/generate', generateRoutes);
 app.use('/api/variations', variationsRoutes);

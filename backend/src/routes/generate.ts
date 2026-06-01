@@ -92,6 +92,7 @@ router.post('/image', async (req: Request, res: Response) => {
     sourceImageBase64,
     sourceImageMimeType,
     extraRefsBase64,
+    model,
   } = req.body as {
     prompt: string;
     shotType?: 'selfie' | 'mirror_selfie' | 'fixed';
@@ -102,6 +103,7 @@ router.post('/image', async (req: Request, res: Response) => {
     sourceImageBase64?: string;
     sourceImageMimeType?: string;
     extraRefsBase64?: Array<{ base64: string; mimeType: string }>;
+    model?: string;
   };
 
   if (!prompt) {
@@ -129,6 +131,7 @@ router.post('/image', async (req: Request, res: Response) => {
       useFace,
       useBody,
       usePhone,
+      model,
       sourceImageBase64,
       sourceImageMimeType,
       extraRefsBase64,

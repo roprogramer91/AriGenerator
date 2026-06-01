@@ -4,6 +4,11 @@ import { Config } from '@prisma/client';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+const GEMINI_MODELS: Record<string, string> = {
+  'nanabanana-pro': 'gemini-3-pro-image-preview',
+  'nanabanana-2':   'gemini-3-flash-image-preview',
+};
+
 type ShotType = 'selfie' | 'mirror_selfie' | 'fixed';
 type Framing = 'close' | 'bust' | 'full';
 type Tilt = 'left' | 'front' | 'right';
@@ -40,6 +45,7 @@ export interface GenerateImageParams {
   useFace: boolean;
   useBody: boolean;
   usePhone: boolean;
+  model?: string;
   framing?: Framing;
   tilt?: Tilt;
   // Lab: imagen fuente a variar
@@ -97,11 +103,13 @@ async function buildConfigParts(config: Config, useFace: boolean, useBody: boole
   return Promise.all(fetches);
 }
 
-async function callGemini(textPrompt: string, imageParts: ImagePart[]): Promise<string> {
+async function callGemini(textPrompt: string, imageParts: ImagePart[], modelKey = 'nanabanana-pro'): Promise<string> {
   const parts = [{ text: textPrompt }, ...imageParts];
+  const modelId = GEMINI_MODELS[modelKey] ?? GEMINI_MODELS['nanabanana-pro'];
+  console.log('[gemini] model:', modelId);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-image-preview',
+    model: modelId,
     contents: [{ role: 'user', parts }],
     config: { responseModalities: ['IMAGE'] },
   });
@@ -124,6 +132,7 @@ export async function generateImage({
   useFace,
   useBody,
   usePhone,
+  model = 'nanabanana-pro',
   framing,
   tilt,
   sourceImageBase64,
@@ -145,6 +154,7 @@ export async function generateImage({
     framing ? shotDescriptions[framing] : undefined,
     tilt ? tiltDescriptions[tilt] : undefined,
     'natural ambient lighting, highly realistic photography, consistent character look',
+    'Negative: moles, beauty marks, birthmarks, dark spots on skin, studio lighting, watermark, text',
   ]
     .filter(Boolean)
     .join(', ');
@@ -163,7 +173,7 @@ export async function generateImage({
     ? [{ inlineData: { mimeType: sourceImageMimeType, data: sourceImageBase64 } }]
     : [];
 
-  return callGemini(prompt, [...configParts, ...extraParts, ...sourcePart]);
+  return callGemini(prompt, [...configParts, ...extraParts, ...sourcePart], model);
 }
 
 export async function generateVariationImage({
@@ -185,6 +195,7 @@ export async function generateVariationImage({
     framing ? shotDescriptions[framing] : undefined,
     angle ? tiltDescriptions[angle] : undefined,
     'realistic photo, same environment.',
+    'Negative: moles, beauty marks, birthmarks, dark spots on skin.',
   ]
     .filter(Boolean)
     .join(' ');

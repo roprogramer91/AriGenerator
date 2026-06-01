@@ -29,7 +29,7 @@ LINE 5 - COMPOSITION: Build this line from the parameters:
   Shot type (mirror_selfie): add "one hand raised holding phone toward mirror, arm visible in reflection."
   Combine whichever apply into one fluid sentence.
 
-LINE 6 - CAMERA FEEL + NEGATIVE: Always write exactly: "Amateur mobile photo, soft blur, natural skin texture, realistic phone camera exposure, slight grain. Negative: studio lighting, overedited skin, professional photography, watermark, text."
+LINE 6 - CAMERA FEEL + NEGATIVE: Always write exactly: "Amateur mobile photo, soft blur, natural skin texture, realistic phone camera exposure, slight grain. Negative: studio lighting, overedited skin, professional photography, watermark, text, moles, beauty marks, birthmarks, dark spots on skin."
 
 ABSOLUTE RULES:
 - Write ONLY the 6 lines — no titles, no labels, no numbering, no explanations

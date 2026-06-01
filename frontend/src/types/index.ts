@@ -35,6 +35,8 @@ export interface GalleryResponse {
 
 export type AppTab = 'compositor' | 'laboratorio' | 'galeria' | 'config';
 
+export type GeminiModel = 'nanabanana-pro' | 'nanabanana-2';
+
 // ─── Flow-style UI types ──────────────────────────────────────────────────────
 
 export type MediaSlot = {
@@ -81,6 +83,7 @@ export type SceneState = {
   estiloDisparo: ShotStyle;
   camara: CameraType;
   usePhone: boolean;
+  model: GeminiModel;
   aspectRatio: '16:9' | '9:16' | '1:1' | '4:3' | '3:4';
   instrucciones: string;
 };
@@ -94,4 +97,5 @@ export type VariationState = {
   alturaAngulo: CameraHeightType;
   giro: HeadTurnType;
   estilo: 'selfie' | 'espejo';
+  model: GeminiModel;
 };

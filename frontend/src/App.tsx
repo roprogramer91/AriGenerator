@@ -4,6 +4,7 @@ import { PreviewArea } from './components/PreviewArea';
 import { VariationSidebar } from './components/VariationSidebar';
 import { ConfigScreen } from './components/Config/ConfigScreen';
 import { GalleryScreen } from './components/Gallery/GalleryScreen';
+import { LoginScreen } from './components/LoginScreen';
 import { useAppStore } from './store/useAppStore';
 import { generatePrompt, generateImage, generateVariations, getConfig } from './services/api';
 import type {
@@ -113,6 +114,7 @@ const INITIAL_SCENE: SceneState = {
   estiloDisparo: 'selfie',
   camara: 'movil',
   usePhone: false,
+  model: 'nanabanana-pro',
   aspectRatio: '9:16',
   instrucciones: '',
 };
@@ -126,11 +128,14 @@ const INITIAL_VARIATION: VariationState = {
   alturaAngulo: 'arriba',
   giro: 'frente',
   estilo: 'selfie',
+  model: 'nanabanana-pro',
 };
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('ari_token'));
+
   const { config, setConfig } = useAppStore();
   const [activeTab, setActiveTab] = useState<AppTab>('compositor');
   const [scene, setScene] = useState<SceneState>(INITIAL_SCENE);
@@ -337,6 +342,7 @@ export default function App() {
         useFace: true,
         useBody: true,
         usePhone: scene.usePhone,
+        model: scene.model,
         inputText: text,
         extraRefsBase64: extraRefsBase64.length > 0 ? extraRefsBase64 : undefined,
       });
@@ -394,6 +400,7 @@ export default function App() {
         useFace: true,
         useBody: true,
         usePhone: false,
+        model: variation.model,
         sourceImageBase64: variation.source.base64,
         sourceImageMimeType: variation.source.mimeType ?? 'image/jpeg',
       });
@@ -499,6 +506,12 @@ export default function App() {
       setTimeout(() => setDownloadStates(prev => { const n = { ...prev }; delete n[result.id]; return n; }), 3000);
     }
   }, []);
+
+  // ─── Auth guard ──────────────────────────────────────────────────────────────
+
+  if (!token) {
+    return <LoginScreen onLogin={setToken} />;
+  }
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 

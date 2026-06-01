@@ -1,5 +1,10 @@
 import React from 'react';
-import type { SceneState, MediaSlot, TiltType, CameraType, Config } from '../types';
+import type { SceneState, MediaSlot, TiltType, CameraType, GeminiModel, Config } from '../types';
+
+const MODEL_OPTIONS: { value: GeminiModel; label: string; desc: string }[] = [
+  { value: 'nanabanana-pro', label: '🍌 NanaBanana Pro', desc: 'Máxima calidad' },
+  { value: 'nanabanana-2',   label: '🍌 NanaBanana 2',   desc: 'Más rápido' },
+];
 
 interface SidebarProps {
   scene: SceneState;
@@ -151,7 +156,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Configuración */}
         <div className="flex flex-col gap-2">
-          <SectionLabel>Configuración</SectionLabel>
+          <SectionLabel>Motor / Configuración</SectionLabel>
+          {/* Model selector */}
+          <div className="grid grid-cols-2 gap-1">
+            {MODEL_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setScene(prev => ({ ...prev, model: opt.value }))}
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all h-14 text-center ${
+                  scene.model === opt.value
+                    ? 'bg-yellow-500/20 border-yellow-500/60 text-yellow-300'
+                    : 'bg-transparent border-[#595959] text-white/40 hover:border-[#7a7a7a]'
+                }`}
+              >
+                <span className="text-[11px] font-bold leading-tight">{opt.label}</span>
+                <span className={`text-[9px] ${scene.model === opt.value ? 'text-yellow-400/70' : 'text-white/20'}`}>{opt.desc}</span>
+              </button>
+            ))}
+          </div>
           <FieldDropdown
             label="Relación de Aspecto"
             value={scene.aspectRatio}
