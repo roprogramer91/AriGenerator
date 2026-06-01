@@ -29,17 +29,25 @@ RULES:
 - Never use words like "beautiful", "gorgeous", "stunning", "perfect"
 - Never invent clothing not described or visible in reference`;
 
+const SHOT_TYPE_LABEL: Record<string, string> = {
+  selfie: 'Regular quality phone selfie (UGC)',
+  mirror_selfie: 'Regular quality phone mirror selfie (UGC)',
+  fixed: 'Regular quality phone photo, fixed camera or timer (UGC)',
+};
+
 interface GeneratePromptParams {
   text?: string;
   refImageBase64?: string;
+  shotType?: 'selfie' | 'mirror_selfie' | 'fixed';
 }
 
-export async function generatePrompt({ text, refImageBase64 }: GeneratePromptParams): Promise<string> {
-  const content: Anthropic.MessageParam['content'] = [];
+export async function generatePrompt({ text, refImageBase64, shotType }: GeneratePromptParams): Promise<string> {
+  const shotTypeLabel = SHOT_TYPE_LABEL[shotType ?? 'selfie'] ?? SHOT_TYPE_LABEL.selfie;
+  const userMessage = `Shot type: ${shotTypeLabel}\n\nScene: ${text ?? ''}\n\nReference image: ${refImageBase64 ? 'yes' : 'no'}`;
 
-  if (text) {
-    content.push({ type: 'text', text });
-  }
+  const content: Anthropic.MessageParam['content'] = [
+    { type: 'text', text: userMessage },
+  ];
 
   if (refImageBase64) {
     content.push({
@@ -54,7 +62,7 @@ export async function generatePrompt({ text, refImageBase64 }: GeneratePromptPar
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 300,
+    max_tokens: 400,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content }],
   });

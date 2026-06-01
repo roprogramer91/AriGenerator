@@ -7,9 +7,10 @@ const router = Router();
 
 // POST /api/generate/prompt
 router.post('/prompt', async (req: Request, res: Response) => {
-  const { text, refImageBase64 } = req.body as {
+  const { text, refImageBase64, shotType } = req.body as {
     text?: string;
     refImageBase64?: string;
+    shotType?: 'selfie' | 'mirror_selfie' | 'fixed';
   };
 
   if (!text && !refImageBase64) {
@@ -17,7 +18,7 @@ router.post('/prompt', async (req: Request, res: Response) => {
     return;
   }
 
-  const prompt = await generatePrompt({ text, refImageBase64 });
+  const prompt = await generatePrompt({ text, refImageBase64, shotType });
   res.json({ prompt });
 });
 

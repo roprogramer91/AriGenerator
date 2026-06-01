@@ -30,3 +30,5 @@ export interface GalleryResponse {
 }
 
 export type Tab = 'create' | 'gallery' | 'config';
+
+export type ShotType = 'selfie' | 'mirror_selfie' | 'fixed';

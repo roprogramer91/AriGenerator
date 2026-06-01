@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Config, Generation, Tab } from '../types';
+import type { Config, Generation, Tab, ShotType } from '../types';
 
 export type CreateStep = 1 | 2 | 3;
 
@@ -13,6 +13,8 @@ interface AppStore {
   // Flujo de generación
   createStep: CreateStep;
   setCreateStep: (step: CreateStep) => void;
+  shotType: ShotType;
+  setShotType: (t: ShotType) => void;
   inputText: string;
   setInputText: (text: string) => void;
   refImageBase64: string | null;
@@ -42,6 +44,8 @@ export const useAppStore = create<AppStore>(set => ({
 
   createStep: 1,
   setCreateStep: createStep => set({ createStep }),
+  shotType: 'selfie',
+  setShotType: shotType => set({ shotType }),
   inputText: '',
   setInputText: inputText => set({ inputText }),
   refImageBase64: null,
@@ -62,6 +66,7 @@ export const useAppStore = create<AppStore>(set => ({
   resetFlow: () =>
     set({
       createStep: 1,
+      shotType: 'selfie',
       inputText: '',
       refImageBase64: null,
       refImagePreview: null,

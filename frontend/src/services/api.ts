@@ -13,7 +13,7 @@ export const uploadConfig = (formData: FormData) =>
   api.post<Config>('/api/config', formData).then(r => r.data);
 
 // Generate
-export const generatePrompt = (payload: { text?: string; refImageBase64?: string }) =>
+export const generatePrompt = (payload: { text?: string; refImageBase64?: string; shotType?: string }) =>
   api.post<{ prompt: string }>('/api/generate/prompt', payload).then(r => r.data);
 
 export const generateImage = (payload: {

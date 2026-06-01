@@ -1,10 +1,18 @@
 import { useRef, useState } from 'react';
 import { generatePrompt } from '../../services/api';
 import { useAppStore } from '../../store/useAppStore';
+import type { ShotType } from '../../types';
+
+const SHOT_TYPES: { key: ShotType; icon: string; label: string }[] = [
+  { key: 'selfie', icon: '📱', label: 'Selfie frontal' },
+  { key: 'mirror_selfie', icon: '🪞', label: 'Selfie espejo' },
+  { key: 'fixed', icon: '📷', label: 'Foto fija' },
+];
 
 export function Step1Input() {
   const {
     config,
+    shotType, setShotType,
     inputText, setInputText,
     refImageBase64, setRefImageBase64,
     refImagePreview, setRefImagePreview,
@@ -25,7 +33,6 @@ export function Step1Input() {
     const reader = new FileReader();
     reader.onload = ev => {
       const result = ev.target?.result as string;
-      // result = "data:image/jpeg;base64,..."
       const base64 = result.split(',')[1];
       setRefImageBase64(base64);
       setRefImagePreview(result);
@@ -47,6 +54,7 @@ export function Step1Input() {
       const { prompt } = await generatePrompt({
         text: inputText.trim() || undefined,
         refImageBase64: refImageBase64 || undefined,
+        shotType,
       });
       setCurrentPrompt(prompt);
       setCreateStep(2);
@@ -81,6 +89,30 @@ export function Step1Input() {
       <div>
         <h2 className="text-xl font-semibold text-[#f5f0eb] mb-1">Nueva imagen de Ari</h2>
         <p className="text-sm text-[#555]">Describí la escena o subí una foto de referencia de pose.</p>
+      </div>
+
+      {/* Shot type selector */}
+      <div className="flex flex-col gap-2">
+        <label className="text-xs font-semibold text-[#888] uppercase tracking-wider">
+          Tipo de foto
+        </label>
+        <div className="flex gap-2">
+          {SHOT_TYPES.map(s => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setShotType(s.key)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-full text-sm font-medium transition-colors border ${
+                shotType === s.key
+                  ? 'bg-[#ff6b6b] border-[#ff6b6b] text-white'
+                  : 'bg-[#1a1a1a] border-[#2a2a2a] text-[#888] hover:text-[#f5f0eb] hover:border-[#444]'
+              }`}
+            >
+              <span>{s.icon}</span>
+              <span className="text-xs">{s.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Text input */}
