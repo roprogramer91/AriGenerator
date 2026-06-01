@@ -38,7 +38,7 @@ export function Step2Prompt() {
   }
 
   interface RefToggle {
-    key: 'face' | 'body' | 'phone';
+    key: string;
     label: string;
     url: string | undefined;
     value: boolean;
@@ -46,11 +46,11 @@ export function Step2Prompt() {
     locked?: boolean;
   }
 
-  const refs: RefToggle[] = [
+  const refs: RefToggle[] = ([
     { key: 'face', label: 'Rostro', url: config?.faceUrl, value: useFace, onChange: setUseFace, locked: true },
     { key: 'body', label: 'Cuerpo', url: config?.bodyUrl, value: useBody, onChange: setUseBody },
     { key: 'phone', label: 'Celular', url: config?.phoneUrl, value: usePhone, onChange: setUsePhone },
-  ].filter(r => r.url);
+  ] as RefToggle[]).filter(r => r.url);
 
   return (
     <div className="px-5 pt-6 pb-6 max-w-lg mx-auto flex flex-col gap-5">
