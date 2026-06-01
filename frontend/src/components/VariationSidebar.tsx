@@ -1,5 +1,5 @@
 import React from 'react';
-import type { VariationState, ZoomType, TiltType } from '../types';
+import type { VariationState } from '../types';
 
 interface VariationSidebarProps {
   state: VariationState;

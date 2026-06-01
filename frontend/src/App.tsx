@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { PreviewArea } from './components/PreviewArea';
 import { VariationSidebar } from './components/VariationSidebar';

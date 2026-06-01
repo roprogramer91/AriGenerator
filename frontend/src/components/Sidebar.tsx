@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SceneState, MediaSlot, ShotPlano, TiltType, ShotStyle, CameraType, Config } from '../types';
+import type { SceneState, MediaSlot, TiltType, CameraType, Config } from '../types';
 
 interface SidebarProps {
   scene: SceneState;
