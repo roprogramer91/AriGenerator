@@ -21,6 +21,7 @@ export function ConfigScreen() {
   const [files, setFiles] = useState<Record<string, File>>({});
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
   const refs = { face: useRef<HTMLInputElement>(null), body: useRef<HTMLInputElement>(null), phone: useRef<HTMLInputElement>(null) };
 
   useEffect(() => {
@@ -33,23 +34,22 @@ export function ConfigScreen() {
     setFiles(prev => ({ ...prev, [key]: file }));
     const url = URL.createObjectURL(file);
     setPreviews(prev => ({ ...prev, [key]: url }));
+    setError('');
   }
 
   async function handleSave() {
-    if (!files.face && !config?.faceUrl) return;
-    if (!files.body && !config?.bodyUrl) return;
+    if (!files.face && !files.body && !files.phone) return;
+    if (!files.face && !config?.faceUrl) { setError('Falta la imagen de Rostro'); return; }
+    if (!files.body && !config?.bodyUrl) { setError('Falta la imagen de Cuerpo'); return; }
 
     setLoading(true);
     setSaved(false);
+    setError('');
     try {
       const fd = new FormData();
       if (files.face) fd.append('face', files.face);
       if (files.body) fd.append('body', files.body);
       if (files.phone) fd.append('phone', files.phone);
-
-      // Si no hay archivo nuevo pero hay URL existente, no hace falta resubir
-      // Solo enviar si hay al menos uno nuevo
-      if (!files.face && !files.body && !files.phone) return;
 
       const updated = await uploadConfig(fd);
       setConfig(updated);
@@ -57,18 +57,16 @@ export function ConfigScreen() {
       setPreviews({});
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al guardar';
+      setError(`Error: ${msg}`);
     } finally {
       setLoading(false);
     }
   }
 
   const hasChanges = Object.keys(files).length > 0;
-  const canSave =
-    hasChanges &&
-    (files.face || config?.faceUrl) &&
-    (files.body || config?.bodyUrl);
+  const canSave = hasChanges;
 
   return (
     <div className="px-5 pt-6 pb-6 max-w-lg mx-auto">
@@ -83,6 +81,7 @@ export function ConfigScreen() {
         {SLOTS.map(slot => {
           const currentUrl = previews[slot.key] || config?.[`${slot.key}Url` as 'faceUrl' | 'bodyUrl' | 'phoneUrl'];
           const hasImage = !!currentUrl;
+          const isSavedRemote = !previews[slot.key] && !!config?.[`${slot.key}Url` as 'faceUrl' | 'bodyUrl' | 'phoneUrl'];
 
           return (
             <div
@@ -92,6 +91,7 @@ export function ConfigScreen() {
               <div className="flex gap-4 p-4">
                 {/* Thumbnail */}
                 <button
+                  type="button"
                   onClick={() => refs[slot.key].current?.click()}
                   className="relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-[#1a1a1a] border-2 border-dashed border-[#333] flex items-center justify-center transition-colors hover:border-[#ff6b6b] group"
                 >
@@ -101,6 +101,7 @@ export function ConfigScreen() {
                         src={currentUrl}
                         alt={slot.label}
                         className="w-full h-full object-cover"
+                        crossOrigin="anonymous"
                       />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <span className="text-white text-xs font-medium">Cambiar</span>
@@ -126,8 +127,8 @@ export function ConfigScreen() {
                     )}
                   </div>
                   <p className="text-xs text-[#666]">{slot.hint}</p>
-                  {hasImage && !previews[slot.key] && (
-                    <p className="text-[10px] text-[#44aa44]">✓ Guardada</p>
+                  {isSavedRemote && (
+                    <p className="text-[10px] text-[#44aa44]">✓ Guardada en Cloudinary</p>
                   )}
                   {previews[slot.key] && (
                     <p className="text-[10px] text-[#ffaa33]">● Sin guardar</p>
@@ -136,6 +137,7 @@ export function ConfigScreen() {
 
                 {/* Upload button */}
                 <button
+                  type="button"
                   onClick={() => refs[slot.key].current?.click()}
                   className="self-center text-xs text-[#ff6b6b] font-medium px-3 py-2 rounded-lg border border-[#ff6b6b]/30 hover:bg-[#ff6b6b]/10 transition-colors"
                 >
@@ -155,8 +157,13 @@ export function ConfigScreen() {
         })}
       </div>
 
+      {error && (
+        <p className="mt-4 text-sm text-[#ff6b6b] bg-[#ff6b6b]/10 rounded-xl px-4 py-3">{error}</p>
+      )}
+
       {/* Save button */}
       <button
+        type="button"
         onClick={handleSave}
         disabled={!canSave || loading}
         className={`mt-6 w-full py-4 rounded-2xl font-semibold text-base transition-all ${
@@ -165,7 +172,7 @@ export function ConfigScreen() {
             : 'bg-[#1e1e1e] text-[#444] cursor-not-allowed'
         }`}
       >
-        {loading ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar cambios'}
+        {loading ? 'Subiendo a Cloudinary...' : saved ? '✓ Guardado' : 'Guardar cambios'}
       </button>
 
       {!config && !hasChanges && (
