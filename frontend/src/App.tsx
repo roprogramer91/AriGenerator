@@ -1,24 +1,18 @@
 import { Layout } from './components/Layout';
 import { ConfigScreen } from './components/Config/ConfigScreen';
+import { Step1Input } from './components/Step1/Step1Input';
+import { Step2Prompt } from './components/Step2/Step2Prompt';
+import { Step3Result } from './components/Step3/Step3Result';
 import { useAppStore } from './store/useAppStore';
 
 function CreateScreen() {
-  const { setTab } = useAppStore();
+  const { createStep } = useAppStore();
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center gap-4">
-      <span className="text-5xl">✨</span>
-      <h2 className="text-xl font-semibold text-[#f5f0eb]">Generá una foto de Ari</h2>
-      <p className="text-sm text-[#555] max-w-xs">
-        Próximamente: escribí una idea o subí una foto de referencia y la app genera la imagen.
-      </p>
-      <button
-        type="button"
-        onClick={() => setTab('config')}
-        className="mt-2 text-sm text-[#ff6b6b] underline underline-offset-4"
-      >
-        Primero configurá las fotos de Ari ⚙️
-      </button>
-    </div>
+    <>
+      {createStep === 1 && <Step1Input />}
+      {createStep === 2 && <Step2Prompt />}
+      {createStep === 3 && <Step3Result />}
+    </>
   );
 }
 
