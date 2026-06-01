@@ -13,11 +13,12 @@ interface PreviewAreaProps {
   downloadStates: Record<string, 'idle' | 'downloading' | 'done' | 'error'>;
   onVariations: (result: GeneratedResult) => void;
   variationLoading: Record<string, boolean>;
+  onUseInLab?: (result: GeneratedResult) => void;
 }
 
 export const PreviewArea: React.FC<PreviewAreaProps> = ({
   history, loading, error, config, scene, lastPrompt,
-  onDownload, downloadStates, onVariations, variationLoading,
+  onDownload, downloadStates, onVariations, variationLoading, onUseInLab,
 }) => {
   return (
     <div className="w-full flex flex-col items-center gap-12 pb-32">
@@ -74,7 +75,10 @@ export const PreviewArea: React.FC<PreviewAreaProps> = ({
                 </div>
                 <span className="text-[11px] text-white/20">{new Date(result.timestamp).toLocaleTimeString()}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                {onUseInLab && (
+                  <UseInLabButton onClick={() => onUseInLab(result)} />
+                )}
                 {!result.isVariation && (
                   <VariationButton
                     loading={variationLoading[result.id]}
@@ -106,8 +110,8 @@ export const PreviewArea: React.FC<PreviewAreaProps> = ({
         ))}
       </div>
 
-      {/* Reference thumbnails bar */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 lg:left-[calc(300px+50%)] lg:-translate-x-1/2 flex gap-3 p-3 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-20">
+      {/* Reference thumbnails bar — bottom-20 on mobile to clear nav bar */}
+      <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 md:left-[calc(300px+50%)] md:-translate-x-1/2 flex gap-2 md:gap-3 p-2 md:p-3 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-20">
         <RefThumbnail label="ID" imgSrc={config?.faceUrl ?? null} variant="identity" />
         <RefThumbnail label="Vest" slot={scene.vestimenta} />
         <RefThumbnail label="Esc" slot={scene.escenario} />
@@ -119,6 +123,17 @@ export const PreviewArea: React.FC<PreviewAreaProps> = ({
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+const UseInLabButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="flex items-center gap-2 h-8 px-4 rounded-full text-[11px] font-bold bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white transition-all"
+  >
+    <span className="material-symbols-outlined text-[16px]">science</span>
+    <span>Usar en Lab</span>
+  </button>
+);
 
 const VariationButton: React.FC<{ loading?: boolean; onClick: () => void }> = ({ loading, onClick }) => (
   <button

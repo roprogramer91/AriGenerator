@@ -60,10 +60,13 @@ export type TiltType = 'ninguna' | 'izquierda' | 'derecha';
 export type ShotStyle = 'selfie' | 'espejo' | 'fija';
 export type CameraType = 'pro' | 'movil';
 export type ZoomType = 'primer' | 'segundo' | 'tercer' | 'cuarto';
+export type CameraHeightType = 'arriba' | 'nivel' | 'abajo';
+export type HeadTurnType = 'izquierda' | 'frente' | 'derecha';
 export type ExpressionType =
   | 'neutra' | 'sonrisa' | 'seria' | 'sorprendida' | 'guiño'
   | 'triste' | 'enojada' | 'enojada_tierna' | 'triste_tierna'
-  | 'beso' | 'sonrisa_tierna' | 'picara';
+  | 'beso' | 'sonrisa_tierna' | 'picara'
+  | 'victoria' | 'dedo_medio' | 'dedo_labio';
 
 export type SceneState = {
   personaje: MediaSlot;
@@ -88,5 +91,7 @@ export type VariationState = {
   expresion: ExpressionType;
   zoom: ZoomType;
   angulo: TiltType;
+  alturaAngulo: CameraHeightType;
+  giro: HeadTurnType;
   estilo: 'selfie' | 'espejo';
 };

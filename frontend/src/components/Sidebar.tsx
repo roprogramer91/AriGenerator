@@ -21,7 +21,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onGenerate, onReset, onConfigClick, loading,
 }) => {
   return (
-    <div className="w-[300px] h-full border-r border-[rgba(218,220,224,0.15)] flex flex-col justify-between px-[10px] py-[12px] shrink-0 bg-[#0e0e0e] overflow-y-auto dark-scrollbar">
+    <div className="w-full flex flex-col justify-between px-3 py-3 bg-[#0e0e0e]">
       <div className="flex flex-col gap-[24px]">
 
         {/* Identidad de Ari */}

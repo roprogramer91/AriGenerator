@@ -8,7 +8,7 @@ import { useAppStore } from './store/useAppStore';
 import { generatePrompt, generateImage, generateVariations, getConfig } from './services/api';
 import type {
   AppTab, SceneState, VariationState, GeneratedResult, MediaSlot,
-  ShotStyle, ZoomType, TiltType, Generation,
+  ShotStyle, ZoomType, TiltType, CameraHeightType, HeadTurnType, Generation,
 } from './types';
 
 // ─── Image compression ────────────────────────────────────────────────────────
@@ -49,18 +49,21 @@ const SHOT_TYPE_MAP: Record<ShotStyle, 'selfie' | 'mirror_selfie' | 'fixed'> = {
 };
 
 const EXP_MAP: Record<string, string> = {
-  neutra: 'neutral facial expression',
-  sonrisa: 'big happy smile',
-  seria: 'serious focused look',
-  sorprendida: 'surprised wide-eyed expression',
-  'guiño': 'playful winking',
-  triste: 'sad emotional face',
-  enojada: 'angry frowning expression',
-  enojada_tierna: 'cute pouting annoyed expression, playful angry face',
-  triste_tierna: 'cute sad pouting, adorable sad face',
-  beso: 'blowing a kiss, puckered lips',
-  sonrisa_tierna: 'tender soft smile, sweet expression',
-  picara: 'smirking mischievous look',
+  neutra: 'neutral facial expression, relaxed',
+  sonrisa: 'big happy smile, natural teeth showing',
+  seria: 'serious focused look, no expression',
+  sorprendida: 'surprised wide-eyed expression, mouth slightly open',
+  'guiño': 'playful winking one eye, subtle smirk',
+  triste: 'sad emotional face, downcast eyes',
+  enojada: 'angry frowning expression, stern look',
+  enojada_tierna: 'cute pouting annoyed face, playful angry look, soft mock-angry expression',
+  triste_tierna: 'cute sad pouting, adorable puppy eyes',
+  beso: 'blowing a kiss, puckered lips forward',
+  sonrisa_tierna: 'tender soft smile, sweet gentle expression, kind eyes',
+  picara: 'smirking mischievous look, one eyebrow slightly raised',
+  victoria: 'flashing a peace/victory V-sign with two fingers, playful proud grin',
+  dedo_medio: 'showing middle finger at camera, cute exaggerated mock-angry face, playful defiant look — not truly offensive, comedic',
+  dedo_labio: 'index finger lightly touching lower lip, soft thoughtful or flirty gaze, subtle pensive expression',
 };
 
 const ZOOM_MAP: Record<ZoomType, string> = {
@@ -71,9 +74,21 @@ const ZOOM_MAP: Record<ZoomType, string> = {
 };
 
 const TILT_MAP: Record<TiltType, string> = {
-  ninguna: 'straight camera angle, level horizon',
-  izquierda: 'dynamic dutch angle, tilted camera to the left',
-  derecha: 'dynamic dutch angle, tilted camera to the right',
+  ninguna: 'camera level, straight horizon',
+  izquierda: 'dutch angle, camera tilted to the left',
+  derecha: 'dutch angle, camera tilted to the right',
+};
+
+const ALTURA_MAP: Record<CameraHeightType, string> = {
+  arriba: 'camera held slightly above eye level, angled down — typical selfie high angle, elongates neck and shows more body',
+  nivel: 'camera at eye level, neutral angle, direct straight-on gaze',
+  abajo: 'camera held slightly below eye level, looking slightly downward into lens',
+};
+
+const GIRO_MAP: Record<HeadTurnType, string> = {
+  izquierda: 'head turned 45 degrees to the left, three-quarter profile',
+  frente: 'facing directly forward, full frontal',
+  derecha: 'head turned 45 degrees to the right, three-quarter profile',
 };
 
 // ─── Initial state ────────────────────────────────────────────────────────────
@@ -108,6 +123,8 @@ const INITIAL_VARIATION: VariationState = {
   expresion: 'sonrisa',
   zoom: 'segundo',
   angulo: 'ninguna',
+  alturaAngulo: 'arriba',
+  giro: 'frente',
   estilo: 'selfie',
 };
 
@@ -361,6 +378,8 @@ export default function App() {
         EXP_MAP[variation.expresion],
         ZOOM_MAP[variation.zoom],
         TILT_MAP[variation.angulo],
+        ALTURA_MAP[variation.alturaAngulo],
+        GIRO_MAP[variation.giro],
       ].join(', ');
 
       const { prompt } = await generatePrompt({
@@ -418,6 +437,26 @@ export default function App() {
     }
   };
 
+  // ─── Usar resultado del compositor en Lab ───────────────────────────────────
+
+  const handleUseInLab = useCallback(async (result: GeneratedResult) => {
+    setActiveTab('laboratorio');
+    try {
+      const response = await fetch(result.imageUrl);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const raw = (reader.result as string).split(',')[1];
+        const { base64, mimeType } = await compressToJpeg(raw, blob.type);
+        setVariation(prev => ({
+          ...prev,
+          source: { ...prev.source, mediaId: `comp_${result.id}`, base64, mimeType },
+        }));
+      };
+      reader.readAsDataURL(blob);
+    } catch { /* usuario puede subir manualmente */ }
+  }, []);
+
   // ─── Variation from gallery ─────────────────────────────────────────────────
 
   const handleVariationFromGallery = useCallback(async (generation: Generation) => {
@@ -463,47 +502,83 @@ export default function App() {
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
+  const NAV_TABS = [
+    { id: 'compositor' as AppTab, label: 'Crear',   icon: 'dashboard_customize' },
+    { id: 'laboratorio' as AppTab, label: 'Lab',    icon: 'psychology' },
+    { id: 'galeria' as AppTab,    label: 'Galería', icon: 'photo_library' },
+    { id: 'config' as AppTab,     label: config ? 'Config ✓' : 'Config ⚠', icon: 'settings' },
+  ] as const;
+
+  const tabActiveClass = (id: AppTab) => {
+    if (activeTab !== id) return '';
+    if (id === 'compositor')  return 'text-white';
+    if (id === 'laboratorio') return 'text-[#3b82f6]';
+    if (id === 'galeria')     return 'text-purple-400';
+    return 'text-amber-400';
+  };
+
+  const commonPreviewProps = {
+    history, loading, error, config, scene, lastPrompt,
+    onDownload: handleDownload,
+    downloadStates,
+    onVariations: handleGenerateVariations,
+    variationLoading,
+    onUseInLab: handleUseInLab,
+  };
+
   return (
-    <div className="flex h-screen w-screen bg-[#0e0e0e] overflow-hidden">
-      {/* Top tab bar */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex bg-black/60 backdrop-blur-xl border border-white/10 p-1 rounded-2xl shadow-2xl">
-        <button
-          type="button"
-          onClick={() => setActiveTab('compositor')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all ${activeTab === 'compositor' ? 'bg-white text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
-        >
-          <span className="material-symbols-outlined text-[18px]">dashboard_customize</span>
-          Compositor
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('laboratorio')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all ${activeTab === 'laboratorio' ? 'bg-[#3b82f6] text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
-        >
-          <span className="material-symbols-outlined text-[18px]">psychology</span>
-          Lab
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('galeria')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all ${activeTab === 'galeria' ? 'bg-purple-500 text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
-        >
-          <span className="material-symbols-outlined text-[18px]">photo_library</span>
-          Galería
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('config')}
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all ${activeTab === 'config' ? 'bg-amber-500 text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
-        >
-          <span className="material-symbols-outlined text-[18px]">settings</span>
-          {config ? '✓' : '⚠'}
-        </button>
+    /* Mobile: flex-col scrollable. Desktop: flex-row fixed-height split */
+    <div className="flex flex-col md:flex-row w-screen bg-[#0e0e0e] min-h-[100dvh] md:h-[100dvh] md:overflow-hidden pb-16 md:pb-0">
+
+      {/* ── Desktop floating top tabs ── */}
+      <div className="hidden md:flex fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-black/60 backdrop-blur-xl border border-white/10 p-1 rounded-2xl shadow-2xl">
+        {NAV_TABS.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setActiveTab(t.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all ${
+              activeTab === t.id
+                ? t.id === 'compositor'  ? 'bg-white text-black shadow-lg'
+                : t.id === 'laboratorio' ? 'bg-[#3b82f6] text-white shadow-lg'
+                : t.id === 'galeria'     ? 'bg-purple-500 text-white shadow-lg'
+                :                         'bg-amber-500 text-black shadow-lg'
+                : 'text-white/40 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Galería */}
+      {/* ── Mobile bottom tab bar ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#111]/95 backdrop-blur border-t border-white/10 flex safe-area-bottom">
+        {NAV_TABS.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setActiveTab(t.id)}
+            className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+              activeTab === t.id ? tabActiveClass(t.id) : 'text-white/30'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[22px]">{t.icon}</span>
+            <span className="text-[9px] font-bold uppercase tracking-tight">{t.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* ── Config ── */}
+      {activeTab === 'config' && (
+        <div className="flex-1 overflow-y-auto dark-scrollbar pt-4 md:pt-20">
+          <ConfigScreen onDone={() => setActiveTab('compositor')} />
+        </div>
+      )}
+
+      {/* ── Galería ── */}
       {activeTab === 'galeria' && (
-        <div className="flex-1 overflow-y-auto dark-scrollbar pt-20">
+        <div className="flex-1 overflow-y-auto dark-scrollbar pt-4 md:pt-20">
           <GalleryScreen
             onGoToCompositor={() => setActiveTab('compositor')}
             onVariationFromGallery={handleVariationFromGallery}
@@ -511,70 +586,39 @@ export default function App() {
         </div>
       )}
 
-      {/* Config screen (overlay) */}
-      {activeTab === 'config' && (
-        <div className="flex-1 overflow-y-auto dark-scrollbar pt-20">
-          <ConfigScreen onDone={() => setActiveTab('compositor')} />
-        </div>
-      )}
-
-      {/* Compositor */}
+      {/* ── Compositor ── */}
       {activeTab === 'compositor' && (
         <>
-          <Sidebar
-            scene={scene}
-            setScene={setScene}
-            config={config}
-            selectedSlotId={selectedSlotId}
-            onSelectMedia={selectLocalFile}
-            onClearMedia={handleClearMedia}
-            onToggleLock={handleToggleLock}
-            onGenerate={handleGenerate}
-            onReset={handleResetScene}
-            onConfigClick={() => setActiveTab('config')}
-            loading={loading}
-          />
-          <main className="flex-1 relative overflow-y-auto dark-scrollbar p-6 pt-24 lg:p-12 lg:pt-24">
-            <PreviewArea
-              history={history}
+          {/* Sidebar: full-width on mobile, 300px fixed on desktop */}
+          <div className="w-full md:w-[300px] md:h-full md:shrink-0 md:overflow-y-auto md:dark-scrollbar md:border-r md:border-white/10">
+            <Sidebar
+              scene={scene} setScene={setScene} config={config}
+              selectedSlotId={selectedSlotId}
+              onSelectMedia={selectLocalFile} onClearMedia={handleClearMedia}
+              onToggleLock={handleToggleLock} onGenerate={handleGenerate}
+              onReset={handleResetScene} onConfigClick={() => setActiveTab('config')}
               loading={loading}
-              error={error}
-              config={config}
-              scene={scene}
-              lastPrompt={lastPrompt}
-              onDownload={handleDownload}
-              downloadStates={downloadStates}
-              onVariations={handleGenerateVariations}
-              variationLoading={variationLoading}
             />
+          </div>
+          {/* Preview: scrolls below sidebar on mobile, fills right on desktop */}
+          <main className="flex-1 overflow-visible md:overflow-y-auto dark-scrollbar p-4 pt-4 md:p-8 md:pt-24">
+            <PreviewArea {...commonPreviewProps} />
           </main>
         </>
       )}
 
-      {/* Lab de Variaciones */}
+      {/* ── Lab de Variaciones ── */}
       {activeTab === 'laboratorio' && (
         <>
-          <VariationSidebar
-            state={variation}
-            setState={setVariation}
-            onSelectMedia={selectLocalFile}
-            onClearMedia={handleClearMedia}
-            onGenerate={handleGenerateFromLab}
-            loading={loading}
-          />
-          <main className="flex-1 relative overflow-y-auto dark-scrollbar p-6 pt-24 lg:p-12 lg:pt-24">
-            <PreviewArea
-              history={history}
-              loading={loading}
-              error={error}
-              config={config}
-              scene={scene}
-              lastPrompt={lastPrompt}
-              onDownload={handleDownload}
-              downloadStates={downloadStates}
-              onVariations={handleGenerateVariations}
-              variationLoading={variationLoading}
+          <div className="w-full md:w-[300px] md:h-full md:shrink-0 md:overflow-y-auto md:dark-scrollbar md:border-r md:border-white/10">
+            <VariationSidebar
+              state={variation} setState={setVariation}
+              onSelectMedia={selectLocalFile} onClearMedia={handleClearMedia}
+              onGenerate={handleGenerateFromLab} loading={loading}
             />
+          </div>
+          <main className="flex-1 overflow-visible md:overflow-y-auto dark-scrollbar p-4 pt-4 md:p-8 md:pt-24">
+            <PreviewArea {...commonPreviewProps} />
           </main>
         </>
       )}
