@@ -7,7 +7,7 @@ interface Props {
   onDownload: (url: string) => void;
   onCopy: (url: string) => void;
   onCopyPrompt: (prompt: string) => void;
-  onVariation: (id: string) => void;
+  onVariation: () => void;
 }
 
 export function ImageModal({ generation, onClose, onDownload, onCopy, onCopyPrompt, onVariation }: Props) {
@@ -57,7 +57,7 @@ export function ImageModal({ generation, onClose, onDownload, onCopy, onCopyProm
           </button>
           <button
             type="button"
-            onClick={() => onVariation(generation.id)}
+            onClick={() => onVariation()}
             className="flex items-center justify-center gap-2 py-3 bg-[#ff6b6b]/10 rounded-xl border border-[#ff6b6b]/30 text-sm text-[#ff6b6b] hover:bg-[#ff6b6b]/20 transition-colors"
           >
             ✨ Variación

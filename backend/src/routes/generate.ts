@@ -31,7 +31,8 @@ router.post('/image', async (req: Request, res: Response) => {
     useBody = true,
     usePhone = false,
     inputText,
-    refImageUrl,
+    sourceImageBase64,
+    sourceImageMimeType,
   } = req.body as {
     prompt: string;
     shotType?: 'selfie' | 'mirror_selfie' | 'fixed';
@@ -39,7 +40,8 @@ router.post('/image', async (req: Request, res: Response) => {
     useBody?: boolean;
     usePhone?: boolean;
     inputText?: string;
-    refImageUrl?: string;
+    sourceImageBase64?: string;
+    sourceImageMimeType?: string;
   };
 
   if (!prompt) {
@@ -60,10 +62,12 @@ router.post('/image', async (req: Request, res: Response) => {
     useFace,
     useBody,
     usePhone,
+    sourceImageBase64,
+    sourceImageMimeType,
   });
 
   const generation = await prisma.generation.create({
-    data: { inputText, refImageUrl, prompt, imageUrl, useFace, useBody, usePhone },
+    data: { inputText, prompt, imageUrl, useFace, useBody, usePhone },
   });
 
   res.json({ id: generation.id, imageUrl });

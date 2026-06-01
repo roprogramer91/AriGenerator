@@ -40,6 +40,8 @@ export interface GenerateImageParams {
   usePhone: boolean;
   framing?: Framing;
   tilt?: Tilt;
+  sourceImageBase64?: string;
+  sourceImageMimeType?: string;
 }
 
 export interface GenerateVariationParams {
@@ -72,7 +74,7 @@ async function uploadBase64ToCloudinary(base64: string): Promise<string> {
   });
 }
 
-async function buildParts(config: Config, useFace: boolean, useBody: boolean, usePhone: boolean) {
+async function buildConfigParts(config: Config, useFace: boolean, useBody: boolean, usePhone: boolean) {
   const fetches: Promise<{ inlineData: { mimeType: string; data: string } }>[] = [];
 
   if (useFace) {
@@ -94,7 +96,10 @@ async function buildParts(config: Config, useFace: boolean, useBody: boolean, us
   return Promise.all(fetches);
 }
 
-async function callGemini(textPrompt: string, imageParts: { inlineData: { mimeType: string; data: string } }[]): Promise<string> {
+async function callGemini(
+  textPrompt: string,
+  imageParts: { inlineData: { mimeType: string; data: string } }[]
+): Promise<string> {
   const parts = [{ text: textPrompt }, ...imageParts];
 
   const response = await ai.models.generateContent({
@@ -123,6 +128,8 @@ export async function generateImage({
   usePhone,
   framing,
   tilt,
+  sourceImageBase64,
+  sourceImageMimeType = 'image/jpeg',
 }: GenerateImageParams): Promise<string> {
   const shotStyleText =
     shotType === 'selfie'
@@ -143,8 +150,14 @@ export async function generateImage({
     .filter(Boolean)
     .join(', ');
 
-  const imageParts = await buildParts(config, useFace, useBody, usePhone);
-  return callGemini(prompt, imageParts);
+  const configParts = await buildConfigParts(config, useFace, useBody, usePhone);
+
+  // If a source image is provided (Lab variations), include it as the last reference
+  const sourcePart: { inlineData: { mimeType: string; data: string } }[] = sourceImageBase64
+    ? [{ inlineData: { mimeType: sourceImageMimeType, data: sourceImageBase64 } }]
+    : [];
+
+  return callGemini(prompt, [...configParts, ...sourcePart]);
 }
 
 export async function generateVariationImage({
@@ -168,6 +181,6 @@ export async function generateVariationImage({
     .filter(Boolean)
     .join(' ');
 
-  const imageParts = await buildParts(config, useFace, useBody, usePhone);
+  const imageParts = await buildConfigParts(config, useFace, useBody, usePhone);
   return callGemini(prompt, imageParts);
 }

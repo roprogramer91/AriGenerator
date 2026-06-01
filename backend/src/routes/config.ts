@@ -27,7 +27,7 @@ router.get('/', async (_req: Request, res: Response) => {
   res.json(config || null);
 });
 
-// POST /api/config — sube imágenes y guarda URLs
+// POST /api/config — sube las imágenes que cambien y guarda URLs
 router.post(
   '/',
   upload.fields([
@@ -38,28 +38,34 @@ router.post(
   async (req: Request, res: Response) => {
     const files = req.files as { [k: string]: Express.Multer.File[] } | undefined;
 
-    if (!files?.face?.[0] || !files?.body?.[0]) {
-      res.status(400).json({ error: 'Se requieren imágenes de rostro y cuerpo' });
+    const hasFace = !!files?.face?.[0];
+    const hasBody = !!files?.body?.[0];
+    const hasPhone = !!files?.phone?.[0];
+
+    if (!hasFace && !hasBody && !hasPhone) {
+      res.status(400).json({ error: 'Sube al menos una imagen' });
       return;
     }
 
-    const [faceUrl, bodyUrl] = await Promise.all([
-      uploadToCloudinary(files.face[0].buffer, 'face'),
-      uploadToCloudinary(files.body[0].buffer, 'body'),
-    ]);
-
-    const phoneUrl = files.phone?.[0]
-      ? await uploadToCloudinary(files.phone[0].buffer, 'phone')
-      : undefined;
-
     const existing = await prisma.config.findFirst();
 
+    // Primera vez: requerir rostro + cuerpo
+    if (!existing && (!hasFace || !hasBody)) {
+      res.status(400).json({ error: 'Para la configuración inicial se requieren Rostro y Cuerpo' });
+      return;
+    }
+
+    // Subir solo los archivos que llegaron
+    const uploads: { faceUrl?: string; bodyUrl?: string; phoneUrl?: string } = {};
+    if (hasFace) uploads.faceUrl = await uploadToCloudinary(files!.face[0].buffer, 'face');
+    if (hasBody) uploads.bodyUrl = await uploadToCloudinary(files!.body[0].buffer, 'body');
+    if (hasPhone) uploads.phoneUrl = await uploadToCloudinary(files!.phone[0].buffer, 'phone');
+
     const config = existing
-      ? await prisma.config.update({
-          where: { id: existing.id },
-          data: { faceUrl, bodyUrl, ...(phoneUrl && { phoneUrl }) },
-        })
-      : await prisma.config.create({ data: { faceUrl, bodyUrl, phoneUrl } });
+      ? await prisma.config.update({ where: { id: existing.id }, data: uploads })
+      : await prisma.config.create({
+          data: { faceUrl: uploads.faceUrl!, bodyUrl: uploads.bodyUrl!, phoneUrl: uploads.phoneUrl },
+        });
 
     res.json(config);
   }

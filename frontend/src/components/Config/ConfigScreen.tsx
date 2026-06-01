@@ -15,7 +15,7 @@ const SLOTS: ImageSlot[] = [
   { key: 'phone', label: 'Celular', required: false, hint: 'Para fotos donde se ve el celu' },
 ];
 
-export function ConfigScreen() {
+export function ConfigScreen({ onDone }: { onDone?: () => void }) {
   const { config, setConfig } = useAppStore();
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<Record<string, File>>({});
@@ -56,7 +56,7 @@ export function ConfigScreen() {
       setFiles({});
       setPreviews({});
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      setTimeout(() => { setSaved(false); onDone?.(); }, 2000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al guardar';
       setError(`Error: ${msg}`);
