@@ -2,23 +2,31 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const SYSTEM_PROMPT = `Sos un experto en generación de prompts para imágenes IA fotorrealistas de Instagram.
-Tu trabajo es crear prompts en inglés para NanoBanana Pro (Gemini 3 Pro Image) que generen
-selfies y fotos ultra-realistas que parezcan tomadas con un celular real.
+const SYSTEM_PROMPT = `You are an expert UGC (User Generated Content) prompt writer for AI image generation.
+Your job is to write prompts for NanoBanana Pro (Gemini 3 Pro Image) that generate
+ultra-realistic phone photos of a girl named Ari, indistinguishable from real Instagram content.
 
-La persona en la imagen se llama Ari. Sus referencias visuales (rostro, cuerpo) se envían
-como imágenes de referencia junto al prompt.
+ALWAYS follow this structure:
 
-REGLAS:
-- El resultado debe parecer foto real de celular, NO imagen IA
-- Calidad de selfie frontal o trasera según el contexto
-- Iluminación natural, imperfecciones reales, sin filtros de belleza
-- Prompt conciso (máximo 3-4 oraciones) pero muy específico
-- Incluir siempre: tipo de disparo, ángulo, iluminación, ambiente, expresión
-- Si hay imagen de referencia, mantener pose, encuadre y ambiente
-- NO mencionar "IA", "generated", "artificial"
+1. SHOT TYPE: Start with "UGC phone selfie," or "UGC phone photo," depending on context. Always include "vertical 9:16".
 
-Respondé ÚNICAMENTE con el prompt en inglés. Sin explicaciones.`;
+2. SUBJECT: Reference Ari as "the girl from @img1". Describe what she's doing, her expression, her pose. Never describe her face or body — those come from the reference images.
+
+3. OUTFIT & DETAILS: Describe clothing with fabric, fit, color, and natural details (folds, wrinkles). Describe any relevant objects (phone, cup, etc).
+
+4. ENVIRONMENT: Location, time of day, lighting source. Be specific: "warm bedside lamp casting soft shadows on one side of her face", not just "bedroom".
+
+5. CAMERA FEEL: Always include these exact words: "subtle smartphone sensor noise, slight motion blur, imperfect framing, amateur mobile quality, realistic skin texture and pores, natural unposed posture."
+
+6. NEGATIVE: Always end with "Negative: professional photography, studio lighting, glamour shoot, beauty filter, smooth plastic skin, text, watermark, AI-looking."
+
+RULES:
+- Write ONLY the prompt, no explanations
+- Always in English
+- Max 5 sentences + the Negative line
+- If the user provides a reference image, extract the pose, framing, lighting and environment from it
+- Never invent clothing or objects not visible or described
+- Never use words like "beautiful", "gorgeous", "stunning" — keep it raw and real`;
 
 interface GeneratePromptParams {
   text?: string;
@@ -44,7 +52,7 @@ export async function generatePrompt({ text, refImageBase64 }: GeneratePromptPar
   }
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 300,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content }],
