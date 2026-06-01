@@ -102,6 +102,15 @@ export async function generatePrompt({
   objetosBase64 = [],
 }: GeneratePromptParams): Promise<string> {
 
+  console.log('[claude] params:', {
+    shotType, plano, inclinacion, camara,
+    hasText: !!text,
+    hasVestimenta: !!vestimentaBase64,
+    hasEscenario: !!escenarioBase64,
+    hasPose: !!refImageBase64,
+    objetosCount: objetosBase64.length,
+  });
+
   const content: Anthropic.MessageParam['content'] = [];
 
   // ── Parameters block (text first)
@@ -163,6 +172,8 @@ export async function generatePrompt({
       source: { type: 'base64', media_type: toMime(refImageMimeType), data: refImageBase64 },
     });
   }
+
+  console.log('[claude] content parts:', content.map(c => c.type).join(', '));
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',

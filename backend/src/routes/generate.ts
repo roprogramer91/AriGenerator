@@ -93,17 +93,30 @@ router.post('/image', async (req: Request, res: Response) => {
     return;
   }
 
-  const imageUrl = await generateImage({
-    userInstructions: prompt,
-    shotType,
-    config,
-    useFace,
-    useBody,
-    usePhone,
-    sourceImageBase64,
-    sourceImageMimeType,
-    extraRefsBase64,
+  console.log('[generate/image] refs:', {
+    extraCount: extraRefsBase64?.length ?? 0,
+    hasSource: !!sourceImageBase64,
   });
+
+  let imageUrl: string;
+  try {
+    imageUrl = await generateImage({
+      userInstructions: prompt,
+      shotType,
+      config,
+      useFace,
+      useBody,
+      usePhone,
+      sourceImageBase64,
+      sourceImageMimeType,
+      extraRefsBase64,
+    });
+  } catch (imgErr: unknown) {
+    const msg = imgErr instanceof Error ? imgErr.message : String(imgErr);
+    console.error('[generate/image] Gemini error:', msg);
+    res.status(500).json({ error: `Error generando imagen: ${msg}` });
+    return;
+  }
 
   const generation = await prisma.generation.create({
     data: { inputText, prompt, imageUrl, useFace, useBody, usePhone },

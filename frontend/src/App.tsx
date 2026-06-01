@@ -11,6 +11,35 @@ import type {
   ShotStyle, ZoomType, TiltType, Generation,
 } from './types';
 
+// ─── Image compression ────────────────────────────────────────────────────────
+// Reduce todas las imágenes a max 1024px JPEG 80% antes de guardarlas en estado.
+// Una foto de celular de 5MB base64 queda en ~150KB — evita errores de payload grande.
+
+async function compressToJpeg(
+  base64: string,
+  mimeType: string,
+  maxPx = 1024,
+  quality = 0.82,
+): Promise<{ base64: string; mimeType: 'image/jpeg' }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+    };
+    img.onerror = () => {
+      // Si falla la compresión, mandar el original
+      resolve({ base64, mimeType: 'image/jpeg' });
+    };
+    img.src = `data:${mimeType};base64,${base64}`;
+  });
+}
+
 // ─── Shot style → backend param ───────────────────────────────────────────────
 
 const SHOT_TYPE_MAP: Record<ShotStyle, 'selfie' | 'mirror_selfie' | 'fixed'> = {
@@ -161,10 +190,12 @@ export default function App() {
       const file = input.files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         const result = reader.result as string;
-        const base64 = result.split(',')[1];
-        updateSlotMedia(slotId, base64, file.type);
+        const rawBase64 = result.split(',')[1];
+        // Comprimir a max 1024px JPEG — reduce 5MB a ~150KB
+        const { base64, mimeType } = await compressToJpeg(rawBase64, file.type);
+        updateSlotMedia(slotId, base64, mimeType);
       };
       reader.readAsDataURL(file);
     };
