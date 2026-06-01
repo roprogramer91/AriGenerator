@@ -77,6 +77,7 @@ export type SceneState = {
   inclinacion: TiltType;
   estiloDisparo: ShotStyle;
   camara: CameraType;
+  usePhone: boolean;
   aspectRatio: '16:9' | '9:16' | '1:1' | '4:3' | '3:4';
   instrucciones: string;
 };

@@ -97,6 +97,7 @@ const INITIAL_SCENE: SceneState = {
   inclinacion: 'ninguna',
   estiloDisparo: 'selfie',
   camara: 'movil',
+  usePhone: false,
   aspectRatio: '9:16',
   instrucciones: '',
 };
@@ -121,6 +122,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [variationLoading, setVariationLoading] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
+  const [lastPrompt, setLastPrompt] = useState<string | null>(null);
   const [downloadStates, setDownloadStates] = useState<Record<string, 'idle' | 'downloading' | 'done' | 'error'>>({});
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
 
@@ -290,6 +292,7 @@ export default function App() {
         plano: scene.plano,
         inclinacion: scene.inclinacion,
         camara: scene.camara,
+        usePhone: scene.usePhone,
         // Pose / composición
         refImageBase64: scene.pose.base64 ?? undefined,
         refImageMimeType: scene.pose.mimeType ?? undefined,
@@ -316,11 +319,12 @@ export default function App() {
         shotType,
         useFace: true,
         useBody: true,
-        usePhone: false,
+        usePhone: scene.usePhone,
         inputText: text,
         extraRefsBase64: extraRefsBase64.length > 0 ? extraRefsBase64 : undefined,
       });
 
+      setLastPrompt(prompt);
       setHistory(prev => [{
         id: result.id,
         imageUrl: result.imageUrl,
@@ -537,6 +541,7 @@ export default function App() {
               error={error}
               config={config}
               scene={scene}
+              lastPrompt={lastPrompt}
               onDownload={handleDownload}
               downloadStates={downloadStates}
               onVariations={handleGenerateVariations}
@@ -564,6 +569,7 @@ export default function App() {
               error={error}
               config={config}
               scene={scene}
+              lastPrompt={lastPrompt}
               onDownload={handleDownload}
               downloadStates={downloadStates}
               onVariations={handleGenerateVariations}

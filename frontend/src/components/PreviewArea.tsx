@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SceneState, GeneratedResult, MediaSlot, Config } from '../types';
+import { PromptDebug } from './PromptDebug';
 
 interface PreviewAreaProps {
   history: GeneratedResult[];
@@ -7,6 +8,7 @@ interface PreviewAreaProps {
   error: string | null;
   config: Config | null;
   scene: SceneState;
+  lastPrompt: string | null;
   onDownload: (result: GeneratedResult) => void;
   downloadStates: Record<string, 'idle' | 'downloading' | 'done' | 'error'>;
   onVariations: (result: GeneratedResult) => void;
@@ -14,11 +16,12 @@ interface PreviewAreaProps {
 }
 
 export const PreviewArea: React.FC<PreviewAreaProps> = ({
-  history, loading, error, config, scene,
+  history, loading, error, config, scene, lastPrompt,
   onDownload, downloadStates, onVariations, variationLoading,
 }) => {
   return (
     <div className="w-full flex flex-col items-center gap-12 pb-32">
+      <PromptDebug scene={scene} config={config} lastPrompt={lastPrompt} loading={loading} />
 
       {/* Loading placeholder */}
       {loading && (

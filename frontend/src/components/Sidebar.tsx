@@ -160,17 +160,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
           />
         </div>
 
-        {/* Dos personas */}
-        <div className="flex items-center justify-between px-2 py-1.5 rounded-xl border border-[#595959]">
-          <p className="text-[10px] text-white/50 font-bold uppercase tracking-widest">Dos personas</p>
-          <button
-            type="button"
-            onClick={() => setScene(prev => ({ ...prev, dosPersonas: !prev.dosPersonas }))}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all ${scene.dosPersonas ? 'bg-blue-500 text-white' : 'bg-white/5 text-white/40'}`}
-          >
-            <span className="material-symbols-outlined text-[14px]">{scene.dosPersonas ? 'group' : 'person'}</span>
-            <span className="text-[9px] font-black uppercase">{scene.dosPersonas ? '2 Personas' : '1 Persona'}</span>
-          </button>
+        {/* Dos personas + Celular */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between px-2 py-1.5 rounded-xl border border-[#595959]">
+            <p className="text-[10px] text-white/50 font-bold uppercase tracking-widest">Dos personas</p>
+            <button
+              type="button"
+              onClick={() => setScene(prev => ({ ...prev, dosPersonas: !prev.dosPersonas }))}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all ${scene.dosPersonas ? 'bg-blue-500 text-white' : 'bg-white/5 text-white/40'}`}
+            >
+              <span className="material-symbols-outlined text-[14px]">{scene.dosPersonas ? 'group' : 'person'}</span>
+              <span className="text-[9px] font-black uppercase">{scene.dosPersonas ? '2 Personas' : '1 Persona'}</span>
+            </button>
+          </div>
+          <div className="flex items-center justify-between px-2 py-1.5 rounded-xl border border-[#595959]">
+            <div className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[14px] text-white/40">phone_iphone</span>
+              <p className="text-[10px] text-white/50 font-bold uppercase tracking-widest">Celular en foto</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setScene(prev => ({ ...prev, usePhone: !prev.usePhone }))}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all ${scene.usePhone ? 'bg-amber-500 text-black' : 'bg-white/5 text-white/40'}`}
+            >
+              <span className="material-symbols-outlined text-[14px]">{scene.usePhone ? 'check_circle' : 'radio_button_unchecked'}</span>
+              <span className="text-[9px] font-black uppercase">{scene.usePhone ? 'Sí' : 'No'}</span>
+            </button>
+          </div>
         </div>
 
       </div>

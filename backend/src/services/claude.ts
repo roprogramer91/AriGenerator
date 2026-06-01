@@ -15,16 +15,18 @@ LINE 1 - SHOT TYPE (use exact wording based on the parameter):
   • mirror_selfie → "Regular quality phone mirror selfie (UGC), vertical 9:16, hand holding phone visible in mirror."
   • fixed        → "Regular quality phone photo, fixed camera or timer (UGC), vertical 9:16."
 
-LINE 2 - IDENTITY: Always start with "The girl from @img1 (same identity)," then describe hair style and visible accessories (earrings, necklace, etc). Never describe face shape or body type.
+LINE 2 - IDENTITY + BODY: Always start with "The girl from @img1 (same identity)," then describe hair style and visible accessories. If a BODY SHAPE REFERENCE image is provided, add a brief natural description of the silhouette and skin tone only (e.g., "slim build with defined waist, pale skin tone"). Never describe face shape. Never include any clothing from the body reference.
 
-LINE 3 - OUTFIT: If a CLOTHING REFERENCE image is provided, look at it and describe ONLY the visible clothing: exact garment names (crop top, oversized hoodie, mini skirt, etc), fabric texture, fit, color, and real-life details (wrinkles, folds, collar shape, hem length). Do NOT describe the person wearing it or the background. If no clothing reference, infer outfit from scene context.
+LINE 3 - OUTFIT: If a CLOTHING REFERENCE image is provided, look at it and describe ONLY the visible clothing: exact garment names, fabric texture, fit, color, and real-life details (wrinkles, folds, collar shape, hem length). Do NOT describe the person wearing it or the background. If no clothing reference, infer outfit from scene context.
 
-LINE 4 - ENVIRONMENT + MOOD: Describe the location and lighting. If a LOCATION REFERENCE image is provided, describe that specific setting (room type, background details, objects visible, direction and quality of light). Be mundane and specific — unmade bed, morning window glow, bathroom tiles, kitchen counter. Add the expression/mood from scene instructions.
+LINE 4 - ENVIRONMENT + MOOD: Describe the location and lighting. If a LOCATION REFERENCE image is provided, describe that specific setting (room type, background details, objects visible, direction and quality of light). Be mundane and specific. Add the expression/mood from scene instructions. If a PHONE REFERENCE image is provided and phone is active, briefly mention the device: brand, model or case color visible.
 
 LINE 5 - COMPOSITION: Build this line from the parameters:
   Plano: primer plano → "Extreme close-up, face fills frame." | segundo plano → "Bust-up framing, shoulders to top of head."
   Inclinación: izquierda → "Dutch angle, camera tilted left." | ninguna → "Camera level, straight horizon." | derecha → "Dutch angle, camera tilted right."
   Cámara: movil → "Natural smartphone exposure, no correction." | pro → "Sharp DSLR-quality look, slight depth of field."
+  Shot type (selfie): add "right arm extended forward holding phone, wrist slightly bent."
+  Shot type (mirror_selfie): add "one hand raised holding phone toward mirror, arm visible in reflection."
   Combine whichever apply into one fluid sentence.
 
 LINE 6 - CAMERA FEEL + NEGATIVE: Always write exactly: "Amateur mobile photo, soft blur, natural skin texture, realistic phone camera exposure, slight grain. Negative: studio lighting, overedited skin, professional photography, watermark, text."
@@ -34,8 +36,10 @@ ABSOLUTE RULES:
 - Always in English
 - Never use: beautiful, gorgeous, stunning, perfect, flawless
 - Keep details mundane and real (messy rooms, natural light, everyday objects)
+- BODY SHAPE REFERENCE: describe ONLY silhouette, proportions, and skin tone — no clothing, no face, no background
 - CLOTHING REFERENCE: describe only the garment visible, not who is wearing it or the background
-- LOCATION REFERENCE: describe only the setting, not any person visible in it`;
+- LOCATION REFERENCE: describe only the setting, not any person visible in it
+- PHONE REFERENCE: only include phone description if PHONE ACTIVE is indicated in the parameters`;
 
 type MimeType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
 
@@ -52,7 +56,7 @@ export interface GeneratePromptParams {
   plano?: 'primer' | 'segundo';
   inclinacion?: 'ninguna' | 'izquierda' | 'derecha';
   camara?: 'movil' | 'pro';
-  // Pose / composition reference (old "refImageBase64")
+  // Pose / composition reference
   refImageBase64?: string;
   refImageMimeType?: string;
   // Clothing reference — Claude reads ONLY the clothing
@@ -63,6 +67,13 @@ export interface GeneratePromptParams {
   escenarioMimeType?: string;
   // Objects (array)
   objetosBase64?: Array<{ base64: string; mimeType: string }>;
+  // Body shape — from Config: Claude reads ONLY silhouette, proportions, skin tone
+  bodyBase64?: string;
+  bodyMimeType?: string;
+  // Phone reference — from Config: Claude describes the device
+  phoneBase64?: string;
+  phoneMimeType?: string;
+  usePhone?: boolean;
 }
 
 const PLANO_LABEL: Record<string, string> = {
@@ -100,14 +111,22 @@ export async function generatePrompt({
   escenarioBase64,
   escenarioMimeType,
   objetosBase64 = [],
+  bodyBase64,
+  bodyMimeType,
+  phoneBase64,
+  phoneMimeType,
+  usePhone = false,
 }: GeneratePromptParams): Promise<string> {
 
   console.log('[claude] params:', {
     shotType, plano, inclinacion, camara,
     hasText: !!text,
+    hasBody: !!bodyBase64,
     hasVestimenta: !!vestimentaBase64,
     hasEscenario: !!escenarioBase64,
     hasPose: !!refImageBase64,
+    usePhone,
+    hasPhone: !!phoneBase64,
     objetosCount: objetosBase64.length,
   });
 
@@ -119,6 +138,7 @@ export async function generatePrompt({
     `PLANO: ${PLANO_LABEL[plano]}`,
     `INCLINACIÓN: ${INCLINACION_LABEL[inclinacion]}`,
     `CÁMARA: ${CAMARA_LABEL[camara]}`,
+    `PHONE ACTIVE: ${usePhone ? 'yes — include phone/device in the scene description' : 'no — do not mention phone or device'}`,
     '',
     `SCENE INSTRUCTIONS: ${text?.trim() || '(none — use the reference images to infer the scene)'}`,
   ].join('\n');
@@ -158,6 +178,30 @@ export async function generatePrompt({
     content.push({
       type: 'image',
       source: { type: 'base64', media_type: toMime(objetosBase64[i].mimeType), data: objetosBase64[i].base64 },
+    });
+  }
+
+  // ── Body shape reference (from Config)
+  if (bodyBase64) {
+    content.push({
+      type: 'text',
+      text: '\n\nBODY SHAPE REFERENCE — for LINE 2, describe ONLY the body silhouette, proportions (height impression, shoulder/hip/waist ratio), and skin tone visible. Do NOT describe any clothing, the face, or the background:',
+    });
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: toMime(bodyMimeType), data: bodyBase64 },
+    });
+  }
+
+  // ── Phone reference (from Config, only if usePhone)
+  if (usePhone && phoneBase64) {
+    content.push({
+      type: 'text',
+      text: '\n\nPHONE REFERENCE — for LINE 4, briefly describe the phone/device visible in this image (brand if identifiable, case color, size). This phone will appear in the photo:',
+    });
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: toMime(phoneMimeType), data: phoneBase64 },
     });
   }
 

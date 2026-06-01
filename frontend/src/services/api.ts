@@ -21,6 +21,7 @@ export const generatePrompt = (payload: {
   plano?: 'primer' | 'segundo';
   inclinacion?: 'ninguna' | 'izquierda' | 'derecha';
   camara?: 'movil' | 'pro';
+  usePhone?: boolean;
   // Pose / composición
   refImageBase64?: string;
   refImageMimeType?: string;
