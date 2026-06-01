@@ -1,10 +1,18 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import configRoutes from './routes/config';
 import generateRoutes from './routes/generate';
 import variationsRoutes from './routes/variations';
 import galleryRoutes from './routes/gallery';
+
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +31,12 @@ app.use('/api/gallery', galleryRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Error handler global
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[express error]', err);
+  res.status(500).json({ error: err.message });
 });
 
 app.listen(PORT, () => {
