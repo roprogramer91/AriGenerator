@@ -29,6 +29,7 @@ export function Step3Result() {
   const {
     currentGeneration, setCurrentGeneration,
     currentPrompt,
+    shotType,
     useFace, useBody, usePhone,
     inputText,
     setCreateStep,
@@ -53,6 +54,7 @@ export function Step3Result() {
     try {
       const result = await generateImage({
         prompt: currentPrompt,
+        shotType,
         useFace, useBody, usePhone,
         inputText: inputText || undefined,
       });
