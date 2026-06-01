@@ -17,8 +17,21 @@ export const uploadConfig = (formData: FormData) =>
 
 export const generatePrompt = (payload: {
   text?: string;
-  refImageBase64?: string;
   shotType?: 'selfie' | 'mirror_selfie' | 'fixed';
+  plano?: 'primer' | 'segundo';
+  inclinacion?: 'ninguna' | 'izquierda' | 'derecha';
+  camara?: 'movil' | 'pro';
+  // Pose / composición
+  refImageBase64?: string;
+  refImageMimeType?: string;
+  // Ropa — Claude lee solo la ropa de esta imagen
+  vestimentaBase64?: string;
+  vestimentaMimeType?: string;
+  // Escenario / fondo — Claude lee solo el ambiente
+  escenarioBase64?: string;
+  escenarioMimeType?: string;
+  // Objetos en escena
+  objetosBase64?: Array<{ base64: string; mimeType: string }>;
 }) => api.post<{ prompt: string }>('/api/generate/prompt', payload).then(r => r.data);
 
 export const generateImage = (payload: {
@@ -28,8 +41,11 @@ export const generateImage = (payload: {
   useBody?: boolean;
   usePhone?: boolean;
   inputText?: string;
+  // Lab: imagen fuente a variar
   sourceImageBase64?: string;
   sourceImageMimeType?: string;
+  // Compositor: refs del sidebar para que Gemini las vea directamente
+  extraRefsBase64?: Array<{ base64: string; mimeType: string }>;
 }) => api.post<{ id: string; imageUrl: string }>('/api/generate/image', payload).then(r => r.data);
 
 // ─── Variations ───────────────────────────────────────────────────────────────

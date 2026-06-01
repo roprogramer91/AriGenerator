@@ -7,18 +7,54 @@ const router = Router();
 
 // POST /api/generate/prompt
 router.post('/prompt', async (req: Request, res: Response) => {
-  const { text, refImageBase64, shotType } = req.body as {
+  const {
+    text,
+    shotType,
+    plano,
+    inclinacion,
+    camara,
+    refImageBase64,
+    refImageMimeType,
+    vestimentaBase64,
+    vestimentaMimeType,
+    escenarioBase64,
+    escenarioMimeType,
+    objetosBase64,
+  } = req.body as {
     text?: string;
-    refImageBase64?: string;
     shotType?: 'selfie' | 'mirror_selfie' | 'fixed';
+    plano?: 'primer' | 'segundo';
+    inclinacion?: 'ninguna' | 'izquierda' | 'derecha';
+    camara?: 'movil' | 'pro';
+    refImageBase64?: string;
+    refImageMimeType?: string;
+    vestimentaBase64?: string;
+    vestimentaMimeType?: string;
+    escenarioBase64?: string;
+    escenarioMimeType?: string;
+    objetosBase64?: Array<{ base64: string; mimeType: string }>;
   };
 
-  if (!text && !refImageBase64) {
-    res.status(400).json({ error: 'Se requiere texto o imagen de referencia' });
+  if (!text && !refImageBase64 && !vestimentaBase64 && !escenarioBase64) {
+    res.status(400).json({ error: 'Se requiere al menos una instrucción o imagen de referencia' });
     return;
   }
 
-  const prompt = await generatePrompt({ text, refImageBase64, shotType });
+  const prompt = await generatePrompt({
+    text,
+    shotType,
+    plano,
+    inclinacion,
+    camara,
+    refImageBase64,
+    refImageMimeType,
+    vestimentaBase64,
+    vestimentaMimeType,
+    escenarioBase64,
+    escenarioMimeType,
+    objetosBase64,
+  });
+
   res.json({ prompt });
 });
 
@@ -33,6 +69,7 @@ router.post('/image', async (req: Request, res: Response) => {
     inputText,
     sourceImageBase64,
     sourceImageMimeType,
+    extraRefsBase64,
   } = req.body as {
     prompt: string;
     shotType?: 'selfie' | 'mirror_selfie' | 'fixed';
@@ -42,6 +79,7 @@ router.post('/image', async (req: Request, res: Response) => {
     inputText?: string;
     sourceImageBase64?: string;
     sourceImageMimeType?: string;
+    extraRefsBase64?: Array<{ base64: string; mimeType: string }>;
   };
 
   if (!prompt) {
@@ -64,6 +102,7 @@ router.post('/image', async (req: Request, res: Response) => {
     usePhone,
     sourceImageBase64,
     sourceImageMimeType,
+    extraRefsBase64,
   });
 
   const generation = await prisma.generation.create({

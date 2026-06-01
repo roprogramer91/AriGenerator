@@ -6,63 +6,167 @@ const SYSTEM_PROMPT = `You are an expert UGC (User Generated Content) prompt wri
 Your job is to write prompts for NanoBanana Pro (Gemini 3 Pro Image) that generate
 ultra-realistic phone photos of a girl named Ari, indistinguishable from real Instagram content.
 
-ALWAYS follow this exact structure and order:
+You will receive: shot type, composition parameters, scene instructions, and optional labeled reference images.
 
-LINE 1 - SHOT TYPE: Start with "Regular quality phone [selfie/mirror selfie/photo] (UGC), vertical 9:16."
+ALWAYS write exactly 6 lines in this exact order — no titles, no numbers, just the lines:
 
-LINE 2 - IDENTITY + HAIR + ACCESSORIES: "The girl from @img1 (same identity)," then describe hair style and any visible accessories (earrings, etc). Never describe face or body shape.
+LINE 1 - SHOT TYPE (use exact wording based on the parameter):
+  • selfie      → "Regular quality phone selfie (UGC), vertical 9:16, front camera."
+  • mirror_selfie → "Regular quality phone mirror selfie (UGC), vertical 9:16, hand holding phone visible in mirror."
+  • fixed        → "Regular quality phone photo, fixed camera or timer (UGC), vertical 9:16."
 
-LINE 3 - EXPRESSION + OUTFIT: Describe her expression/mood, then clothing with fabric, fit, color, natural details (folds, wrinkles, oversized, etc).
+LINE 2 - IDENTITY: Always start with "The girl from @img1 (same identity)," then describe hair style and visible accessories (earrings, necklace, etc). Never describe face shape or body type.
 
-LINE 4 - ENVIRONMENT: Location, background details (what's visible behind her), lighting source and quality. Be specific and mundane: unmade bed, clothes on chair, dirty mirror, etc.
+LINE 3 - OUTFIT: If a CLOTHING REFERENCE image is provided, look at it and describe ONLY the visible clothing: exact garment names (crop top, oversized hoodie, mini skirt, etc), fabric texture, fit, color, and real-life details (wrinkles, folds, collar shape, hem length). Do NOT describe the person wearing it or the background. If no clothing reference, infer outfit from scene context.
 
-LINE 5 - CAMERA FEEL: Always use these exact words: "Amateur mobile photo, soft blur, natural skin texture, realistic phone camera exposure, slight grain."
+LINE 4 - ENVIRONMENT + MOOD: Describe the location and lighting. If a LOCATION REFERENCE image is provided, describe that specific setting (room type, background details, objects visible, direction and quality of light). Be mundane and specific — unmade bed, morning window glow, bathroom tiles, kitchen counter. Add the expression/mood from scene instructions.
 
-LINE 6 - NEGATIVE: Always end with "Negative: studio lighting, overedited skin, professional photography, watermark, text."
+LINE 5 - COMPOSITION: Build this line from the parameters:
+  Plano: primer plano → "Extreme close-up, face fills frame." | segundo plano → "Bust-up framing, shoulders to top of head."
+  Inclinación: izquierda → "Dutch angle, camera tilted left." | ninguna → "Camera level, straight horizon." | derecha → "Dutch angle, camera tilted right."
+  Cámara: movil → "Natural smartphone exposure, no correction." | pro → "Sharp DSLR-quality look, slight depth of field."
+  Combine whichever apply into one fluid sentence.
 
-RULES:
-- Write ONLY the prompt, no explanations, no titles, no numbering
+LINE 6 - CAMERA FEEL + NEGATIVE: Always write exactly: "Amateur mobile photo, soft blur, natural skin texture, realistic phone camera exposure, slight grain. Negative: studio lighting, overedited skin, professional photography, watermark, text."
+
+ABSOLUTE RULES:
+- Write ONLY the 6 lines — no titles, no labels, no numbering, no explanations
 - Always in English
-- Exactly 6 lines as described above
-- If the user provides a reference image, extract pose, framing, environment and lighting from it — keep the same vibe
-- Keep details mundane and real: unmade beds, morning light, dirty mirrors, clothes on chairs
-- Never use words like "beautiful", "gorgeous", "stunning", "perfect"
-- Never invent clothing not described or visible in reference`;
+- Never use: beautiful, gorgeous, stunning, perfect, flawless
+- Keep details mundane and real (messy rooms, natural light, everyday objects)
+- CLOTHING REFERENCE: describe only the garment visible, not who is wearing it or the background
+- LOCATION REFERENCE: describe only the setting, not any person visible in it`;
 
-const SHOT_TYPE_LABEL: Record<string, string> = {
-  selfie: 'Regular quality phone selfie (UGC)',
-  mirror_selfie: 'Regular quality phone mirror selfie (UGC)',
-  fixed: 'Regular quality phone photo, fixed camera or timer (UGC)',
-};
+type MimeType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
 
-interface GeneratePromptParams {
-  text?: string;
-  refImageBase64?: string;
-  shotType?: 'selfie' | 'mirror_selfie' | 'fixed';
+function toMime(raw?: string | null): MimeType {
+  if (raw === 'image/png') return 'image/png';
+  if (raw === 'image/gif') return 'image/gif';
+  if (raw === 'image/webp') return 'image/webp';
+  return 'image/jpeg';
 }
 
-export async function generatePrompt({ text, refImageBase64, shotType }: GeneratePromptParams): Promise<string> {
-  const shotTypeLabel = SHOT_TYPE_LABEL[shotType ?? 'selfie'] ?? SHOT_TYPE_LABEL.selfie;
-  const userMessage = `Shot type: ${shotTypeLabel}\n\nScene: ${text ?? ''}\n\nReference image: ${refImageBase64 ? 'yes' : 'no'}`;
+export interface GeneratePromptParams {
+  text?: string;
+  shotType?: 'selfie' | 'mirror_selfie' | 'fixed';
+  plano?: 'primer' | 'segundo';
+  inclinacion?: 'ninguna' | 'izquierda' | 'derecha';
+  camara?: 'movil' | 'pro';
+  // Pose / composition reference (old "refImageBase64")
+  refImageBase64?: string;
+  refImageMimeType?: string;
+  // Clothing reference — Claude reads ONLY the clothing
+  vestimentaBase64?: string;
+  vestimentaMimeType?: string;
+  // Location / background reference
+  escenarioBase64?: string;
+  escenarioMimeType?: string;
+  // Objects (array)
+  objetosBase64?: Array<{ base64: string; mimeType: string }>;
+}
 
-  const content: Anthropic.MessageParam['content'] = [
-    { type: 'text', text: userMessage },
-  ];
+const PLANO_LABEL: Record<string, string> = {
+  primer: 'primer plano (extreme close-up, face fills frame)',
+  segundo: 'segundo plano (bust-up, from shoulders to top of head)',
+};
 
-  if (refImageBase64) {
+const INCLINACION_LABEL: Record<string, string> = {
+  ninguna: 'ninguna (camera level, straight horizon)',
+  izquierda: 'izquierda (dutch angle tilted left)',
+  derecha: 'derecha (dutch angle tilted right)',
+};
+
+const CAMARA_LABEL: Record<string, string> = {
+  movil: 'movil (natural smartphone exposure, no correction)',
+  pro: 'pro (sharp DSLR-quality look, slight depth of field)',
+};
+
+const SHOT_TYPE_LABEL: Record<string, string> = {
+  selfie: 'selfie — front camera, hand visible holding phone',
+  mirror_selfie: 'mirror_selfie — reflected in mirror, hand holding phone visible',
+  fixed: 'fixed — camera on surface or timer, hands free',
+};
+
+export async function generatePrompt({
+  text,
+  shotType = 'selfie',
+  plano = 'segundo',
+  inclinacion = 'ninguna',
+  camara = 'movil',
+  refImageBase64,
+  refImageMimeType,
+  vestimentaBase64,
+  vestimentaMimeType,
+  escenarioBase64,
+  escenarioMimeType,
+  objetosBase64 = [],
+}: GeneratePromptParams): Promise<string> {
+
+  const content: Anthropic.MessageParam['content'] = [];
+
+  // ── Parameters block (text first)
+  const params = [
+    `SHOT TYPE: ${SHOT_TYPE_LABEL[shotType]}`,
+    `PLANO: ${PLANO_LABEL[plano]}`,
+    `INCLINACIÓN: ${INCLINACION_LABEL[inclinacion]}`,
+    `CÁMARA: ${CAMARA_LABEL[camara]}`,
+    '',
+    `SCENE INSTRUCTIONS: ${text?.trim() || '(none — use the reference images to infer the scene)'}`,
+  ].join('\n');
+
+  content.push({ type: 'text', text: params });
+
+  // ── Clothing reference
+  if (vestimentaBase64) {
+    content.push({
+      type: 'text',
+      text: '\n\nCLOTHING REFERENCE — for LINE 3, describe ONLY the clothing visible in this image (garment type, fabric, fit, color, texture details). Do NOT describe the person, pose, or background:',
+    });
     content.push({
       type: 'image',
-      source: {
-        type: 'base64',
-        media_type: 'image/jpeg',
-        data: refImageBase64,
-      },
+      source: { type: 'base64', media_type: toMime(vestimentaMimeType), data: vestimentaBase64 },
+    });
+  }
+
+  // ── Location reference
+  if (escenarioBase64) {
+    content.push({
+      type: 'text',
+      text: '\n\nLOCATION REFERENCE — for LINE 4, describe ONLY the location and lighting visible in this image (room type, background objects, light direction and quality). Do NOT describe any person:',
+    });
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: toMime(escenarioMimeType), data: escenarioBase64 },
+    });
+  }
+
+  // ── Objects
+  for (let i = 0; i < objetosBase64.length; i++) {
+    content.push({
+      type: 'text',
+      text: `\n\nOBJECT ${i + 1} REFERENCE — briefly describe this object (what it is, color, size) to include it in the scene:`,
+    });
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: toMime(objetosBase64[i].mimeType), data: objetosBase64[i].base64 },
+    });
+  }
+
+  // ── Pose / composition reference
+  if (refImageBase64) {
+    content.push({
+      type: 'text',
+      text: '\n\nPOSE / COMPOSITION REFERENCE — use the framing, body position, angle, and scene vibe from this image as inspiration. Extract composition details but do NOT copy the outfit or location if separate references were already provided:',
+    });
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: toMime(refImageMimeType), data: refImageBase64 },
     });
   }
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 400,
+    max_tokens: 500,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content }],
   });

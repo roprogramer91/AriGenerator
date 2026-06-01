@@ -245,13 +245,40 @@ export default function App() {
     setError(null);
     try {
       const shotType = SHOT_TYPE_MAP[scene.estiloDisparo];
-      const text = scene.instrucciones.trim() || 'Photo of Ari in a natural everyday moment';
+      const text = scene.instrucciones.trim() || undefined;
 
+      // Objetos con imagen cargada
+      const objetosBase64 = scene.objetos
+        .filter(o => o.base64)
+        .map(o => ({ base64: o.base64!, mimeType: o.mimeType! }));
+
+      // Claude: recibe parámetros + imágenes de referencia con sus roles
       const { prompt } = await generatePrompt({
         text,
-        refImageBase64: scene.pose.base64 ?? undefined,
         shotType,
+        plano: scene.plano,
+        inclinacion: scene.inclinacion,
+        camara: scene.camara,
+        // Pose / composición
+        refImageBase64: scene.pose.base64 ?? undefined,
+        refImageMimeType: scene.pose.mimeType ?? undefined,
+        // Ropa — Claude lee solo la ropa
+        vestimentaBase64: scene.vestimenta.base64 ?? undefined,
+        vestimentaMimeType: scene.vestimenta.mimeType ?? undefined,
+        // Escenario / fondo
+        escenarioBase64: scene.escenario.base64 ?? undefined,
+        escenarioMimeType: scene.escenario.mimeType ?? undefined,
+        // Objetos
+        objetosBase64: objetosBase64.length > 0 ? objetosBase64 : undefined,
       });
+
+      // Gemini: Config de Ari + todas las imágenes del sidebar como referencias visuales
+      const extraRefsBase64 = [
+        scene.vestimenta.base64 ? { base64: scene.vestimenta.base64, mimeType: scene.vestimenta.mimeType! } : null,
+        scene.escenario.base64 ? { base64: scene.escenario.base64, mimeType: scene.escenario.mimeType! } : null,
+        scene.pose.base64 ? { base64: scene.pose.base64, mimeType: scene.pose.mimeType! } : null,
+        ...objetosBase64,
+      ].filter((r): r is { base64: string; mimeType: string } => r !== null);
 
       const result = await generateImage({
         prompt,
@@ -260,6 +287,7 @@ export default function App() {
         useBody: true,
         usePhone: false,
         inputText: text,
+        extraRefsBase64: extraRefsBase64.length > 0 ? extraRefsBase64 : undefined,
       });
 
       setHistory(prev => [{

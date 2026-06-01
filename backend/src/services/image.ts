@@ -31,6 +31,8 @@ const expressionMap: Record<string, string> = {
   mischievous: 'mischievous smirk',
 };
 
+type ImagePart = { inlineData: { mimeType: string; data: string } };
+
 export interface GenerateImageParams {
   userInstructions: string;
   shotType: ShotType;
@@ -40,8 +42,11 @@ export interface GenerateImageParams {
   usePhone: boolean;
   framing?: Framing;
   tilt?: Tilt;
+  // Lab: imagen fuente a variar
   sourceImageBase64?: string;
   sourceImageMimeType?: string;
+  // Compositor: refs extra del sidebar (vestimenta, escenario, pose, objetos)
+  extraRefsBase64?: Array<{ base64: string; mimeType: string }>;
 }
 
 export interface GenerateVariationParams {
@@ -52,9 +57,11 @@ export interface GenerateVariationParams {
   expression?: string;
   framing?: Framing;
   angle?: Tilt;
+  // Imagen de la generación padre para mantener ropa/escenario
+  parentImageBase64?: string;
 }
 
-async function urlToBase64(url: string): Promise<string> {
+export async function urlToBase64(url: string): Promise<string> {
   const response = await fetch(url);
   const buffer = await response.arrayBuffer();
   return Buffer.from(buffer).toString('base64');
@@ -74,32 +81,23 @@ async function uploadBase64ToCloudinary(base64: string): Promise<string> {
   });
 }
 
-async function buildConfigParts(config: Config, useFace: boolean, useBody: boolean, usePhone: boolean) {
-  const fetches: Promise<{ inlineData: { mimeType: string; data: string } }>[] = [];
+async function buildConfigParts(config: Config, useFace: boolean, useBody: boolean, usePhone: boolean): Promise<ImagePart[]> {
+  const fetches: Promise<ImagePart>[] = [];
 
   if (useFace) {
-    fetches.push(
-      urlToBase64(config.faceUrl).then(data => ({ inlineData: { mimeType: 'image/jpeg', data } }))
-    );
+    fetches.push(urlToBase64(config.faceUrl).then(data => ({ inlineData: { mimeType: 'image/jpeg', data } })));
   }
   if (useBody) {
-    fetches.push(
-      urlToBase64(config.bodyUrl).then(data => ({ inlineData: { mimeType: 'image/jpeg', data } }))
-    );
+    fetches.push(urlToBase64(config.bodyUrl).then(data => ({ inlineData: { mimeType: 'image/jpeg', data } })));
   }
   if (usePhone && config.phoneUrl) {
-    fetches.push(
-      urlToBase64(config.phoneUrl).then(data => ({ inlineData: { mimeType: 'image/jpeg', data } }))
-    );
+    fetches.push(urlToBase64(config.phoneUrl).then(data => ({ inlineData: { mimeType: 'image/jpeg', data } })));
   }
 
   return Promise.all(fetches);
 }
 
-async function callGemini(
-  textPrompt: string,
-  imageParts: { inlineData: { mimeType: string; data: string } }[]
-): Promise<string> {
+async function callGemini(textPrompt: string, imageParts: ImagePart[]): Promise<string> {
   const parts = [{ text: textPrompt }, ...imageParts];
 
   const response = await ai.models.generateContent({
@@ -130,6 +128,7 @@ export async function generateImage({
   tilt,
   sourceImageBase64,
   sourceImageMimeType = 'image/jpeg',
+  extraRefsBase64 = [],
 }: GenerateImageParams): Promise<string> {
   const shotStyleText =
     shotType === 'selfie'
@@ -150,14 +149,21 @@ export async function generateImage({
     .filter(Boolean)
     .join(', ');
 
+  // Orden de referencias para Gemini:
+  // 1. Config (identidad de Ari — rostro y cuerpo)
+  // 2. Extra refs del sidebar (vestimenta, escenario, pose, objetos) — mantiene look
+  // 3. Source image (Lab: imagen a variar)
   const configParts = await buildConfigParts(config, useFace, useBody, usePhone);
 
-  // If a source image is provided (Lab variations), include it as the last reference
-  const sourcePart: { inlineData: { mimeType: string; data: string } }[] = sourceImageBase64
+  const extraParts: ImagePart[] = extraRefsBase64.map(ref => ({
+    inlineData: { mimeType: ref.mimeType, data: ref.base64 },
+  }));
+
+  const sourcePart: ImagePart[] = sourceImageBase64
     ? [{ inlineData: { mimeType: sourceImageMimeType, data: sourceImageBase64 } }]
     : [];
 
-  return callGemini(prompt, [...configParts, ...sourcePart]);
+  return callGemini(prompt, [...configParts, ...extraParts, ...sourcePart]);
 }
 
 export async function generateVariationImage({
@@ -168,11 +174,13 @@ export async function generateVariationImage({
   expression,
   framing,
   angle,
+  parentImageBase64,
 }: GenerateVariationParams): Promise<string> {
   const prompt = [
     'Variation of the person from the source image.',
     'Maintain character consistency.',
-    'Keep persistent clothing from the original image.',
+    'Keep EXACT persistent clothing from the original image — same garments, colors, and fabric.',
+    'Keep the same location and background from the original image.',
     expression && expressionMap[expression] ? `Scene variation: ${expressionMap[expression]},` : undefined,
     framing ? shotDescriptions[framing] : undefined,
     angle ? tiltDescriptions[angle] : undefined,
@@ -181,6 +189,12 @@ export async function generateVariationImage({
     .filter(Boolean)
     .join(' ');
 
-  const imageParts = await buildConfigParts(config, useFace, useBody, usePhone);
-  return callGemini(prompt, imageParts);
+  const configParts = await buildConfigParts(config, useFace, useBody, usePhone);
+
+  // Si hay imagen del padre, la mandamos a Gemini para que "vea" la ropa y escenario originales
+  const parentPart: ImagePart[] = parentImageBase64
+    ? [{ inlineData: { mimeType: 'image/jpeg', data: parentImageBase64 } }]
+    : [];
+
+  return callGemini(prompt, [...configParts, ...parentPart]);
 }

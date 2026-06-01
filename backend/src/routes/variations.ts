@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { generateVariationImage } from '../services/image';
+import { generateVariationImage, urlToBase64 } from '../services/image';
 import prisma from '../lib/prisma';
 
 const router = Router();
@@ -14,7 +14,7 @@ router.post('/', async (req: Request, res: Response) => {
     count?: number;
   };
 
-  const parent = await prisma.generation.findUnique({ where: { id: generationId as string } });
+  const parent = await prisma.generation.findUnique({ where: { id: generationId } });
   if (!parent) {
     res.status(404).json({ error: 'Generación no encontrada' });
     return;
@@ -24,6 +24,14 @@ router.post('/', async (req: Request, res: Response) => {
   if (!config) {
     res.status(400).json({ error: 'Config de Ari no encontrada' });
     return;
+  }
+
+  // Descargamos la imagen padre como base64 para que Gemini vea la ropa y el escenario
+  let parentImageBase64: string | undefined;
+  try {
+    parentImageBase64 = await urlToBase64(parent.imageUrl);
+  } catch {
+    // Si falla la descarga, generamos sin referencia padre
   }
 
   const varCount = Math.min(Math.max(count, 1), 3);
@@ -38,13 +46,10 @@ router.post('/', async (req: Request, res: Response) => {
       expression,
       framing,
       angle,
+      parentImageBase64,
     });
 
-    const variationPrompt = [
-      expression,
-      framing,
-      angle,
-    ].filter(Boolean).join(', ') || 'variation';
+    const variationPrompt = [expression, framing, angle].filter(Boolean).join(', ') || 'variation';
 
     const variation = await prisma.generation.create({
       data: {
