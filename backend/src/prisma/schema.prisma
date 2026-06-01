@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Config {
+  id        String   @id @default(cuid())
+  faceUrl   String
+  bodyUrl   String
+  phoneUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Generation {
+  id           String   @id @default(cuid())
+  inputText    String?
+  refImageUrl  String?
+  prompt       String
+  imageUrl     String
+  useFace      Boolean  @default(true)
+  useBody      Boolean  @default(true)
+  usePhone     Boolean  @default(false)
+  isVariation  Boolean  @default(false)
+  parentId     String?
+  createdAt    DateTime @default(now())
+}
