@@ -18,6 +18,7 @@ export const generatePrompt = (payload: { text?: string; refImageBase64?: string
 
 export const generateImage = (payload: {
   prompt: string;
+  shotType: string;
   useFace: boolean;
   useBody: boolean;
   usePhone: boolean;

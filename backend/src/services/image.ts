@@ -4,12 +4,52 @@ import { Config } from '@prisma/client';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-interface GenerateImageParams {
-  prompt: string;
+type ShotType = 'selfie' | 'mirror_selfie' | 'fixed';
+type Framing = 'close' | 'bust' | 'full';
+type Tilt = 'left' | 'front' | 'right';
+
+const shotDescriptions: Record<Framing, string> = {
+  close: 'extreme close-up on face',
+  bust: 'bust shot from shoulders up',
+  full: 'full body shot',
+};
+
+const tiltDescriptions: Record<Tilt, string> = {
+  left: 'slightly angled to the left',
+  front: 'straight front facing',
+  right: 'slightly angled to the right',
+};
+
+const expressionMap: Record<string, string> = {
+  smile: 'warm smile',
+  serious: 'serious expression',
+  tender: 'tender gentle look',
+  cute_angry: 'cute mock-angry expression',
+  pout: 'soft pout',
+  surprised: 'surprised expression',
+  wink: 'playful wink',
+  mischievous: 'mischievous smirk',
+};
+
+export interface GenerateImageParams {
+  userInstructions: string;
+  shotType: ShotType;
   config: Config;
   useFace: boolean;
   useBody: boolean;
   usePhone: boolean;
+  framing?: Framing;
+  tilt?: Tilt;
+}
+
+export interface GenerateVariationParams {
+  config: Config;
+  useFace: boolean;
+  useBody: boolean;
+  usePhone: boolean;
+  expression?: string;
+  framing?: Framing;
+  angle?: Tilt;
 }
 
 async function urlToBase64(url: string): Promise<string> {
@@ -32,31 +72,30 @@ async function uploadBase64ToCloudinary(base64: string): Promise<string> {
   });
 }
 
-export async function generateImage({
-  prompt,
-  config,
-  useFace,
-  useBody,
-  usePhone,
-}: GenerateImageParams): Promise<string> {
-  const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [
-    { text: prompt },
-  ];
+async function buildParts(config: Config, useFace: boolean, useBody: boolean, usePhone: boolean) {
+  const fetches: Promise<{ inlineData: { mimeType: string; data: string } }>[] = [];
 
   if (useFace) {
-    const faceB64 = await urlToBase64(config.faceUrl);
-    parts.push({ inlineData: { mimeType: 'image/jpeg', data: faceB64 } });
+    fetches.push(
+      urlToBase64(config.faceUrl).then(data => ({ inlineData: { mimeType: 'image/jpeg', data } }))
+    );
   }
-
   if (useBody) {
-    const bodyB64 = await urlToBase64(config.bodyUrl);
-    parts.push({ inlineData: { mimeType: 'image/jpeg', data: bodyB64 } });
+    fetches.push(
+      urlToBase64(config.bodyUrl).then(data => ({ inlineData: { mimeType: 'image/jpeg', data } }))
+    );
+  }
+  if (usePhone && config.phoneUrl) {
+    fetches.push(
+      urlToBase64(config.phoneUrl).then(data => ({ inlineData: { mimeType: 'image/jpeg', data } }))
+    );
   }
 
-  if (usePhone && config.phoneUrl) {
-    const phoneB64 = await urlToBase64(config.phoneUrl);
-    parts.push({ inlineData: { mimeType: 'image/jpeg', data: phoneB64 } });
-  }
+  return Promise.all(fetches);
+}
+
+async function callGemini(textPrompt: string, imageParts: { inlineData: { mimeType: string; data: string } }[]): Promise<string> {
+  const parts = [{ text: textPrompt }, ...imageParts];
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-image-preview',
@@ -72,6 +111,63 @@ export async function generateImage({
     throw new Error('Gemini no devolvió imagen');
   }
 
-  const imageUrl = await uploadBase64ToCloudinary(imagePart.inlineData.data);
-  return imageUrl;
+  return uploadBase64ToCloudinary(imagePart.inlineData.data);
+}
+
+export async function generateImage({
+  userInstructions,
+  shotType,
+  config,
+  useFace,
+  useBody,
+  usePhone,
+  framing,
+  tilt,
+}: GenerateImageParams): Promise<string> {
+  const shotStyleText =
+    shotType === 'selfie'
+      ? 'authentic smartphone front camera selfie, mobile sensor look, slight distortion'
+      : shotType === 'mirror_selfie'
+      ? 'phone mirror selfie, rear camera quality, hand holding phone visible in mirror'
+      : 'authentic smartphone photo, natural amateur photography, mobile sensor look';
+
+  const prompt = [
+    'Photo of one person.',
+    'Wearing the persistent clothing from the reference.',
+    userInstructions,
+    shotStyleText,
+    framing ? shotDescriptions[framing] : undefined,
+    tilt ? tiltDescriptions[tilt] : undefined,
+    'natural ambient lighting, highly realistic photography, consistent character look',
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  const imageParts = await buildParts(config, useFace, useBody, usePhone);
+  return callGemini(prompt, imageParts);
+}
+
+export async function generateVariationImage({
+  config,
+  useFace,
+  useBody,
+  usePhone,
+  expression,
+  framing,
+  angle,
+}: GenerateVariationParams): Promise<string> {
+  const prompt = [
+    'Variation of the person from the source image.',
+    'Maintain character consistency.',
+    'Keep persistent clothing from the original image.',
+    expression && expressionMap[expression] ? `Scene variation: ${expressionMap[expression]},` : undefined,
+    framing ? shotDescriptions[framing] : undefined,
+    angle ? tiltDescriptions[angle] : undefined,
+    'realistic photo, same environment.',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const imageParts = await buildParts(config, useFace, useBody, usePhone);
+  return callGemini(prompt, imageParts);
 }

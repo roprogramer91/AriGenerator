@@ -24,15 +24,23 @@ router.post('/prompt', async (req: Request, res: Response) => {
 
 // POST /api/generate/image
 router.post('/image', async (req: Request, res: Response) => {
-  const { prompt, useFace = true, useBody = true, usePhone = false, inputText, refImageUrl } =
-    req.body as {
-      prompt: string;
-      useFace?: boolean;
-      useBody?: boolean;
-      usePhone?: boolean;
-      inputText?: string;
-      refImageUrl?: string;
-    };
+  const {
+    prompt,
+    shotType = 'selfie',
+    useFace = true,
+    useBody = true,
+    usePhone = false,
+    inputText,
+    refImageUrl,
+  } = req.body as {
+    prompt: string;
+    shotType?: 'selfie' | 'mirror_selfie' | 'fixed';
+    useFace?: boolean;
+    useBody?: boolean;
+    usePhone?: boolean;
+    inputText?: string;
+    refImageUrl?: string;
+  };
 
   if (!prompt) {
     res.status(400).json({ error: 'Se requiere un prompt' });
@@ -45,7 +53,14 @@ router.post('/image', async (req: Request, res: Response) => {
     return;
   }
 
-  const imageUrl = await generateImage({ prompt, config, useFace, useBody, usePhone });
+  const imageUrl = await generateImage({
+    userInstructions: prompt,
+    shotType,
+    config,
+    useFace,
+    useBody,
+    usePhone,
+  });
 
   const generation = await prisma.generation.create({
     data: { inputText, refImageUrl, prompt, imageUrl, useFace, useBody, usePhone },

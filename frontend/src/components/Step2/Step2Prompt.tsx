@@ -5,6 +5,7 @@ import { useAppStore } from '../../store/useAppStore';
 export function Step2Prompt() {
   const {
     config,
+    shotType,
     currentPrompt, setCurrentPrompt,
     inputText,
     useFace, useBody, usePhone,
@@ -23,6 +24,7 @@ export function Step2Prompt() {
     try {
       const result = await generateImage({
         prompt: currentPrompt,
+        shotType,
         useFace,
         useBody,
         usePhone,
