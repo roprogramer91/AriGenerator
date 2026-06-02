@@ -6,7 +6,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const GEMINI_MODELS: Record<string, string> = {
   'nanabanana-pro': 'gemini-3-pro-image-preview',
-  'nanabanana-2':   'gemini-3-flash-image-preview',
+  'nanabanana-2':   'gemini-3.1-flash-image-preview',
 };
 
 type ShotType = 'selfie' | 'mirror_selfie' | 'fixed';
