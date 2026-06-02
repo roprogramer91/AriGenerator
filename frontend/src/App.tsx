@@ -5,41 +5,15 @@ import { VariationSidebar } from './components/VariationSidebar';
 import { ConfigScreen } from './components/Config/ConfigScreen';
 import { GalleryScreen } from './components/Gallery/GalleryScreen';
 import { LoginScreen } from './components/LoginScreen';
+import { ImagePickerModal } from './components/ImagePickerModal';
 import { useAppStore } from './store/useAppStore';
+import { compressToJpeg } from './lib/imageUtils';
+import { saveToLibrary } from './lib/imageLibrary';
 import { generatePrompt, generateImage, generateVariations, getConfig } from './services/api';
 import type {
   AppTab, SceneState, VariationState, GeneratedResult, MediaSlot,
   ShotStyle, ZoomType, TiltType, CameraHeightType, HeadTurnType, Generation,
 } from './types';
-
-// ─── Image compression ────────────────────────────────────────────────────────
-// Reduce todas las imágenes a max 1024px JPEG 80% antes de guardarlas en estado.
-// Una foto de celular de 5MB base64 queda en ~150KB — evita errores de payload grande.
-
-async function compressToJpeg(
-  base64: string,
-  mimeType: string,
-  maxPx = 1024,
-  quality = 0.82,
-): Promise<{ base64: string; mimeType: 'image/jpeg' }> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', quality);
-      resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
-    };
-    img.onerror = () => {
-      // Si falla la compresión, mandar el original
-      resolve({ base64, mimeType: 'image/jpeg' });
-    };
-    img.src = `data:${mimeType};base64,${base64}`;
-  });
-}
 
 // ─── Shot style → backend param ───────────────────────────────────────────────
 
@@ -94,6 +68,17 @@ const GIRO_MAP: Record<HeadTurnType, string> = {
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
+const SLOT_LABELS: Record<string, string> = {
+  personaje: 'Rostro / Persona',
+  contextura: 'Tipo de Cuerpo',
+  vestimenta: 'Vestimenta',
+  escenario: 'Escenario / Fondo',
+  obj1: 'Objeto 1',
+  obj2: 'Objeto 2',
+  pose: 'Pose / Referencia',
+  var_source: 'Imagen a Variar',
+};
+
 const makeSlot = (id: string, label: string, icon: string): MediaSlot => ({
   id, label, icon, mediaId: null, base64: null, mimeType: null, isLocked: false,
 });
@@ -147,6 +132,7 @@ export default function App() {
   const [lastPrompt, setLastPrompt] = useState<string | null>(null);
   const [downloadStates, setDownloadStates] = useState<Record<string, 'idle' | 'downloading' | 'done' | 'error'>>({});
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [pickerSlotId, setPickerSlotId] = useState<string | null>(null);
 
   // Escuchar expiración de sesión (interceptor axios)
   useEffect(() => {
@@ -213,26 +199,19 @@ export default function App() {
     });
   }, []);
 
+  // Abre el ImagePickerModal para seleccionar imagen (portapapeles / nueva / anteriores)
   const selectLocalFile = useCallback((slotId: string) => {
     setSelectedSlotId(slotId);
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const result = reader.result as string;
-        const rawBase64 = result.split(',')[1];
-        // Comprimir a max 1024px JPEG — reduce 5MB a ~150KB
-        const { base64, mimeType } = await compressToJpeg(rawBase64, file.type);
-        updateSlotMedia(slotId, base64, mimeType);
-      };
-      reader.readAsDataURL(file);
-    };
-    input.click();
-  }, [updateSlotMedia]);
+    setPickerSlotId(slotId);
+  }, []);
+
+  // Llamado cuando el modal confirma una imagen (ya comprimida desde el modal)
+  const handlePickerSelect = useCallback((base64: string, mimeType: string) => {
+    if (!pickerSlotId) return;
+    saveToLibrary(base64);
+    updateSlotMedia(pickerSlotId, base64, mimeType);
+    setPickerSlotId(null);
+  }, [pickerSlotId, updateSlotMedia]);
 
   const handleClearMedia = useCallback((slotId: string) => {
     if (slotId === 'var_source') {
@@ -642,6 +621,15 @@ export default function App() {
             <PreviewArea {...commonPreviewProps} />
           </main>
         </>
+      )}
+
+      {/* ── ImagePickerModal ── */}
+      {pickerSlotId && (
+        <ImagePickerModal
+          slotLabel={SLOT_LABELS[pickerSlotId] ?? 'Imagen'}
+          onSelect={handlePickerSelect}
+          onClose={() => setPickerSlotId(null)}
+        />
       )}
     </div>
   );
