@@ -45,19 +45,22 @@ router.post('/prompt', async (req: Request, res: Response) => {
   // Obtener Config para pasar rostro, cuerpo y celular a Claude
   const config = await prisma.config.findFirst();
   let faceBase64: string | undefined;
+  let faceMimeType = 'image/jpeg';
   let bodyBase64: string | undefined;
+  let bodyMimeType = 'image/jpeg';
   let phoneBase64: string | undefined;
+  let phoneMimeType = 'image/jpeg';
 
   if (config) {
-    const { urlToBase64 } = await import('../services/image');
+    const { urlToBase64WithType } = await import('../services/image');
     try {
-      if (config.faceUrl) faceBase64 = await urlToBase64(config.faceUrl);
+      if (config.faceUrl) ({ base64: faceBase64, mimeType: faceMimeType } = await urlToBase64WithType(config.faceUrl));
     } catch { /* si falla, Claude genera sin referencia de rostro */ }
     try {
-      if (config.bodyUrl) bodyBase64 = await urlToBase64(config.bodyUrl);
+      if (config.bodyUrl) ({ base64: bodyBase64, mimeType: bodyMimeType } = await urlToBase64WithType(config.bodyUrl));
     } catch { /* si falla, Claude genera sin referencia de cuerpo */ }
     try {
-      if (usePhone && config.phoneUrl) phoneBase64 = await urlToBase64(config.phoneUrl);
+      if (usePhone && config.phoneUrl) ({ base64: phoneBase64, mimeType: phoneMimeType } = await urlToBase64WithType(config.phoneUrl));
     } catch { /* si falla, sin referencia de celular */ }
   }
 
@@ -75,11 +78,11 @@ router.post('/prompt', async (req: Request, res: Response) => {
     escenarioMimeType,
     objetosBase64,
     faceBase64,
-    faceMimeType: 'image/jpeg',
+    faceMimeType,
     bodyBase64,
-    bodyMimeType: 'image/jpeg',
+    bodyMimeType,
     phoneBase64,
-    phoneMimeType: 'image/jpeg',
+    phoneMimeType,
     usePhone,
   });
 

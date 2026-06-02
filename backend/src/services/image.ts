@@ -73,6 +73,14 @@ export async function urlToBase64(url: string): Promise<string> {
   return Buffer.from(buffer).toString('base64');
 }
 
+export async function urlToBase64WithType(url: string): Promise<{ base64: string; mimeType: string }> {
+  const response = await fetch(url);
+  const buffer = await response.arrayBuffer();
+  const base64 = Buffer.from(buffer).toString('base64');
+  const mimeType = response.headers.get('content-type')?.split(';')[0] || 'image/jpeg';
+  return { base64, mimeType };
+}
+
 async function uploadBase64ToCloudinary(base64: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
