@@ -148,10 +148,18 @@ export default function App() {
   const [downloadStates, setDownloadStates] = useState<Record<string, 'idle' | 'downloading' | 'done' | 'error'>>({});
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
 
-  // Load config on mount
+  // Escuchar expiración de sesión (interceptor axios)
   useEffect(() => {
+    const handler = () => setToken(null);
+    window.addEventListener('ari_session_expired', handler);
+    return () => window.removeEventListener('ari_session_expired', handler);
+  }, []);
+
+  // Cargar config solo cuando el usuario está autenticado
+  useEffect(() => {
+    if (!token) return;
     getConfig().then(c => { if (c) setConfig(c); }).catch(() => {});
-  }, [setConfig]);
+  }, [setConfig, token]);
 
   // Inject styles (same as Flow app)
   useEffect(() => {

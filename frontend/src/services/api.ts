@@ -12,13 +12,13 @@ api.interceptors.request.use(config => {
   return config;
 });
 
-// Si el servidor responde 401, limpiar token (fuerza re-login)
+// Si el servidor responde 401, limpiar token y emitir evento (App.tsx escucha y muestra login)
 api.interceptors.response.use(
   r => r,
   err => {
     if (err?.response?.status === 401) {
       localStorage.removeItem('ari_token');
-      window.location.reload();
+      window.dispatchEvent(new CustomEvent('ari_session_expired'));
     }
     return Promise.reject(err);
   },
