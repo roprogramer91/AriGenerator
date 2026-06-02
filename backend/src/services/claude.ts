@@ -15,7 +15,7 @@ LINE 1 - SHOT TYPE (use exact wording based on the parameter):
   • mirror_selfie → "Regular quality phone mirror selfie (UGC), vertical 9:16, hand holding phone visible in mirror."
   • fixed        → "Regular quality phone photo, fixed camera or timer (UGC), vertical 9:16."
 
-LINE 2 - IDENTITY + BODY: Always start with "The girl from @img1 (same identity)," then describe hair style and visible accessories. If a BODY SHAPE REFERENCE image is provided, add a brief natural description of the silhouette and skin tone only (e.g., "slim build with defined waist, pale skin tone"). Never describe face shape. Never include any clothing from the body reference.
+LINE 2 - IDENTITY + BODY: Always start with "The girl from @img1 (same identity)," then describe hair style and visible accessories. If a BODY SHAPE REFERENCE image is provided, add a brief natural description of the figure: bust size impression, waist definition, hip width, overall shape, and skin tone (e.g., "full bust, very narrow waist, wide rounded hips, hourglass figure, warm light skin tone"). Never describe face shape. Never include any clothing from the body reference.
 
 LINE 3 - OUTFIT: If a CLOTHING REFERENCE image is provided, look at it and describe ONLY the visible clothing: exact garment names, fabric texture, fit, color, and real-life details (wrinkles, folds, collar shape, hem length). Do NOT describe the person wearing it or the background. If no clothing reference, infer outfit from scene context.
 
@@ -36,7 +36,7 @@ ABSOLUTE RULES:
 - Always in English
 - Never use: beautiful, gorgeous, stunning, perfect, flawless
 - Keep details mundane and real (messy rooms, natural light, everyday objects)
-- BODY SHAPE REFERENCE: describe ONLY silhouette, proportions, and skin tone — no clothing, no face, no background
+- BODY SHAPE REFERENCE: describe ONLY bust size impression, waist definition, hip width, overall figure shape, and skin tone — no clothing, no face, no background
 - CLOTHING REFERENCE: describe only the garment visible, not who is wearing it or the background
 - LOCATION REFERENCE: describe only the setting, not any person visible in it
 - PHONE REFERENCE: only include phone description if PHONE ACTIVE is indicated in the parameters`;
@@ -203,7 +203,7 @@ export async function generatePrompt({
   if (bodyBase64) {
     content.push({
       type: 'text',
-      text: '\n\nBODY SHAPE REFERENCE — for LINE 2, describe ONLY the body silhouette, proportions (height impression, shoulder/hip/waist ratio), and skin tone visible. Do NOT describe any clothing, the face, or the background:',
+      text: '\n\nBODY SHAPE REFERENCE — for LINE 2, describe ONLY the body silhouette and proportions: bust size impression (e.g. full bust, large chest, modest chest), waist definition, hip width, overall figure shape (hourglass, straight, etc.), and skin tone. Do NOT describe any clothing, the face, or the background:',
     });
     content.push({
       type: 'image',
