@@ -42,13 +42,17 @@ router.post('/prompt', async (req: Request, res: Response) => {
     return;
   }
 
-  // Obtener Config para pasar cuerpo y celular a Claude
+  // Obtener Config para pasar rostro, cuerpo y celular a Claude
   const config = await prisma.config.findFirst();
+  let faceBase64: string | undefined;
   let bodyBase64: string | undefined;
   let phoneBase64: string | undefined;
 
   if (config) {
     const { urlToBase64 } = await import('../services/image');
+    try {
+      if (config.faceUrl) faceBase64 = await urlToBase64(config.faceUrl);
+    } catch { /* si falla, Claude genera sin referencia de rostro */ }
     try {
       if (config.bodyUrl) bodyBase64 = await urlToBase64(config.bodyUrl);
     } catch { /* si falla, Claude genera sin referencia de cuerpo */ }
@@ -70,6 +74,8 @@ router.post('/prompt', async (req: Request, res: Response) => {
     escenarioBase64,
     escenarioMimeType,
     objetosBase64,
+    faceBase64,
+    faceMimeType: 'image/jpeg',
     bodyBase64,
     bodyMimeType: 'image/jpeg',
     phoneBase64,

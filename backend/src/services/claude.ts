@@ -67,6 +67,9 @@ export interface GeneratePromptParams {
   escenarioMimeType?: string;
   // Objects (array)
   objetosBase64?: Array<{ base64: string; mimeType: string }>;
+  // Face — from Config: Claude reads ONLY hair style and accessories for LINE 2
+  faceBase64?: string;
+  faceMimeType?: string;
   // Body shape — from Config: Claude reads ONLY silhouette, proportions, skin tone
   bodyBase64?: string;
   bodyMimeType?: string;
@@ -111,6 +114,8 @@ export async function generatePrompt({
   escenarioBase64,
   escenarioMimeType,
   objetosBase64 = [],
+  faceBase64,
+  faceMimeType,
   bodyBase64,
   bodyMimeType,
   phoneBase64,
@@ -121,6 +126,7 @@ export async function generatePrompt({
   console.log('[claude] params:', {
     shotType, plano, inclinacion, camara,
     hasText: !!text,
+    hasFace: !!faceBase64,
     hasBody: !!bodyBase64,
     hasVestimenta: !!vestimentaBase64,
     hasEscenario: !!escenarioBase64,
@@ -178,6 +184,18 @@ export async function generatePrompt({
     content.push({
       type: 'image',
       source: { type: 'base64', media_type: toMime(objetosBase64[i].mimeType), data: objetosBase64[i].base64 },
+    });
+  }
+
+  // ── Face reference (from Config)
+  if (faceBase64) {
+    content.push({
+      type: 'text',
+      text: '\n\nIDENTITY REFERENCE — for LINE 2, look at this image and describe ONLY the hair style: color, length, texture, and whether it is up or down. Do NOT describe face shape, skin tone, or any clothing:',
+    });
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: toMime(faceMimeType), data: faceBase64 },
     });
   }
 
